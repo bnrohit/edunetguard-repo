@@ -1,0 +1,26 @@
+{
+  "sites": [
+    {
+      "name": "Demo High School",
+      "siteType": "High School",
+      "status": "online",
+      "internetProvider": "Fiber",
+      "backupInternet": "LTE/Starlink optional",
+      "gateway": "10.x.x.1",
+      "dns": ["10.x.x.x"],
+      "dhcpScopes": ["10.x.x.0/24"],
+      "notes": "Use sanitized values only. Do not commit private IP plans for production."
+    },
+    {
+      "name": "Demo Elementary",
+      "siteType": "Elementary",
+      "status": "online",
+      "internetProvider": "Fiber",
+      "backupInternet": "None",
+      "gateway": "10.x.x.1",
+      "dns": ["10.x.x.x"],
+      "dhcpScopes": ["10.x.x.0/24"],
+      "notes": "Sample record."
+    }
+  ]
+}

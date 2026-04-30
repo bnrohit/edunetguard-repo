@@ -1,0 +1,13 @@
+node_modules/
+build/
+dist/
+.env
+logs/
+*.log
+.DS_Store
+coverage/
+.cache/
+# Keep demo data, but do not commit real production exports
+/data/*.real.json
+/data/*.private.json
+/data/*.prod.json

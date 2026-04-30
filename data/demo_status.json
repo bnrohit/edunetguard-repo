@@ -1,0 +1,49 @@
+{
+  "timestamp": "2026-04-30T00:00:00.000Z",
+  "overall": {
+    "status": "operational",
+    "uptime_percentage": 99.95
+  },
+  "services": [
+    {
+      "id": "internet-core",
+      "name": "District Internet Edge",
+      "status": "up",
+      "uptime": 99.98,
+      "last_check": null,
+      "group": "Internet & Connectivity",
+      "type": "ping",
+      "url": null
+    },
+    {
+      "id": "dns-primary",
+      "name": "Primary DNS Resolution",
+      "status": "up",
+      "uptime": 99.96,
+      "last_check": null,
+      "group": "Internal Services",
+      "type": "dns",
+      "url": null
+    },
+    {
+      "id": "dhcp-core",
+      "name": "DHCP Scope Health",
+      "status": "up",
+      "uptime": 99.9,
+      "last_check": null,
+      "group": "Internal Services",
+      "type": "dhcp",
+      "url": null
+    },
+    {
+      "id": "lms",
+      "name": "Learning Platform",
+      "status": "up",
+      "uptime": 99.99,
+      "last_check": null,
+      "group": "Learning Management",
+      "type": "http",
+      "url": null
+    }
+  ]
+}

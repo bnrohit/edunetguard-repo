@@ -1,0 +1,20 @@
+{
+  "scopes": [
+    {
+      "site": "Demo High School",
+      "scope": "10.x.x.0/24",
+      "vlan": "Staff",
+      "used": 180,
+      "free": 40,
+      "percentUsed": 82
+    },
+    {
+      "site": "Demo Elementary",
+      "scope": "10.x.x.0/24",
+      "vlan": "Wireless",
+      "used": 210,
+      "free": 20,
+      "percentUsed": 91
+    }
+  ]
+}

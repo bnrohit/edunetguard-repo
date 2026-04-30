@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+  }
+}
+
+@layer components {
+  .status-dot {
+    @apply w-3 h-3 rounded-full inline-block;
+  }
+  .status-dot-up {
+    @apply bg-status-up animate-pulse-slow;
+  }
+  .status-dot-down {
+    @apply bg-status-down;
+  }
+  .status-dot-pending {
+    @apply bg-status-pending animate-pulse;
+  }
+  .service-card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-4 transition-all duration-200 hover:shadow-md;
+  }
+  .service-card:hover {
+    @apply transform -translate-y-0.5;
+  }
+}

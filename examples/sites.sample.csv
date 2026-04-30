@@ -1,0 +1,3 @@
+site_name,site_type,city,state,gateway_check,dns_check,critical_services,notes
+Demo Elementary,Elementary,Example City,State,192.0.2.1,192.0.2.53,"Internet,DNS,WiFi",Use documentation-only sample IPs
+Demo High School,High School,Example City,State,198.51.100.1,198.51.100.53,"Internet,LMS,Phones",Replace with your own sanitized monitoring targets
