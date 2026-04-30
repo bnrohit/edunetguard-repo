@@ -82,7 +82,7 @@ function App() {
         .text-primary { color: ${primaryColor}; }
         .bg-primary { background-color: ${primaryColor}; }
         .border-primary { border-color: ${primaryColor}; }
-        .hover\:bg-primary:hover { background-color: ${primaryColor}; }
+        .hover:bg-primary:hover { background-color: ${primaryColor}; }
       `}</style>
 
       <StatusHeader
