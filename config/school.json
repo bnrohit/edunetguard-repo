@@ -1,0 +1,23 @@
+{
+  "school": {
+    "name": "EduNetGuard Demo District",
+    "logo": null,
+    "timezone": "America/Denver",
+    "contactEmail": "technology@example.edu"
+  },
+  "theme": {
+    "primaryColor": "#2563eb",
+    "darkMode": false
+  },
+  "display": {
+    "showIncidentHistory": true,
+    "refreshInterval": 30,
+    "showUptimePercentage": true
+  },
+  "categories": [
+    { "id": "internet", "name": "Internet & Connectivity", "icon": "wifi" },
+    { "id": "internal", "name": "Internal Services", "icon": "server" },
+    { "id": "learning", "name": "Learning Platforms", "icon": "book" },
+    { "id": "facilities", "name": "Facilities & Safety", "icon": "building" }
+  ]
+}

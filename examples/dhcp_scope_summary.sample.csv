@@ -1,0 +1,3 @@
+site_name,scope_name,total_addresses,addresses_in_use,addresses_free,percentage_in_use,status
+Demo Elementary,Staff VLAN,250,210,40,84,warning
+Demo High School,Wireless VLAN,500,490,10,98,critical

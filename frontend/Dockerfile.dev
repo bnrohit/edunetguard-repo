@@ -1,0 +1,12 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm install
+
+# Don't copy source - mounted via volume in dev
+EXPOSE 3000
+
+CMD ["npm", "start"]

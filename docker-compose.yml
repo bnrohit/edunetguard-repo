@@ -1,0 +1,83 @@
+version: "3.8"
+
+services:
+  # Public-facing status dashboard
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: edunetguard-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_URL=/api
+      - REACT_APP_REFRESH_INTERVAL=30000
+    depends_on:
+      - backend
+    networks:
+      - edunetguard
+
+  # API proxy & data aggregator
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: edunetguard-backend
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - UPTIME_KUMA_URL=http://uptime-kuma:3001
+      - CACHE_TTL=30
+    volumes:
+      - ./config:/app/config:ro
+    depends_on:
+      - uptime-kuma
+    networks:
+      - edunetguard
+
+  # Uptime Kuma monitoring engine
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: edunetguard-kuma
+    restart: unless-stopped
+    volumes:
+      - uptime-kuma-data:/app/data
+    environment:
+      - TZ=UTC
+    healthcheck:
+      test: ["CMD", "node", "/app/extra/healthcheck.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - edunetguard
+
+  # Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: edunetguard-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend/build:/usr/share/nginx/html:ro
+    depends_on:
+      - frontend
+      - backend
+      - uptime-kuma
+    networks:
+      - edunetguard
+
+volumes:
+  uptime-kuma-data:
+    driver: local
+
+networks:
+  edunetguard:
+    driver: bridge
