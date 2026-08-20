@@ -1,6 +1,6 @@
 {
   "short_name": "EduNetGuard",
-  "name": "EduNetGuard Dashboard",
+  "name": "EduNetGuard - K-12 Network Continuity",
   "icons": [
     {
       "src": "favicon.ico",
@@ -10,6 +10,6 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#2563eb",
-  "background_color": "#ffffff"
+  "theme_color": "#0f172a",
+  "background_color": "#f8fafc"
 }

@@ -1,4 +1,9 @@
 {
+  "brand": {
+    "productName": "EduNetGuard",
+    "tagline": "K-12 Network Continuity & Infrastructure Monitoring",
+    "repositoryUrl": "https://github.com/bnrohit/edunetguard-repo"
+  },
   "school": {
     "name": "EduNetGuard Demo District",
     "logo": null,

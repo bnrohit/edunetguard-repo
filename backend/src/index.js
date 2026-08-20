@@ -4,7 +4,6 @@ const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const NodeCache = require('node-cache');
-const path = require('path');
 
 const statusRoutes = require('./routes/status');
 const healthRoutes = require('./routes/health');
@@ -14,12 +13,10 @@ const dhcpRoutes = require('./routes/dhcp');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
-const CACHE_TTL = parseInt(process.env.CACHE_TTL) || 30;
+const CACHE_TTL = parseInt(process.env.CACHE_TTL, 10) || 30;
 
-// Initialize cache
 const cache = new NodeCache({ stdTTL: CACHE_TTL, checkperiod: 10 });
 
-// Security middleware
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -38,33 +35,33 @@ app.use(cors({
 
 app.use(compression());
 
-// Rate limiting
 const limiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: 1 * 60 * 1000,
+  max: 100,
   message: { error: 'Too many requests, please try again later.' },
 });
 app.use(limiter);
 
-// Attach cache to requests
 app.use((req, res, next) => {
   req.cache = cache;
   next();
 });
 
-// Routes
 app.use('/status', statusRoutes);
 app.use('/health', healthRoutes);
 app.use('/config', configRoutes);
 app.use('/sites', sitesRoutes);
 app.use('/dhcp', dhcpRoutes);
 
-// Root endpoint
 app.get('/', (req, res) => {
   res.json({
     name: 'EduNetGuard API',
-    version: '0.1.0',
+    version: '0.2.0',
     status: 'operational',
+    monitoring: {
+      engine: 'Uptime Kuma',
+      status_page_slug: process.env.UPTIME_KUMA_STATUS_PAGE || 'edunetguard',
+    },
     endpoints: {
       status: '/status',
       health: '/health',
@@ -75,7 +72,6 @@ app.get('/', (req, res) => {
   });
 });
 
-// Error handling
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   res.status(500).json({
@@ -85,6 +81,7 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 EduNetGuard API running on port ${PORT}`);
+  console.log(`🚀 EduNetGuard API v0.2.0 running on port ${PORT}`);
   console.log(`📊 Cache TTL: ${CACHE_TTL}s`);
+  console.log(`🛡️ Uptime Kuma status page: ${process.env.UPTIME_KUMA_STATUS_PAGE || 'edunetguard'}`);
 });
