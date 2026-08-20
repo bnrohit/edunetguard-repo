@@ -56,10 +56,9 @@ app.use('/dhcp', dhcpRoutes);
 app.get('/', (req, res) => {
   res.json({
     name: 'EduNetGuard API',
-    version: '0.2.0',
+    version: '0.2.1',
     status: 'operational',
     monitoring: {
-      engine: 'Uptime Kuma',
       status_page_slug: process.env.UPTIME_KUMA_STATUS_PAGE || 'edunetguard',
     },
     endpoints: {
@@ -81,7 +80,7 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 EduNetGuard API v0.2.0 running on port ${PORT}`);
-  console.log(`📊 Cache TTL: ${CACHE_TTL}s`);
-  console.log(`🛡️ Uptime Kuma status page: ${process.env.UPTIME_KUMA_STATUS_PAGE || 'edunetguard'}`);
+  console.log(`EduNetGuard API v0.2.1 running on port ${PORT}`);
+  console.log(`Cache TTL: ${CACHE_TTL}s`);
+  console.log(`Monitoring status page: ${process.env.UPTIME_KUMA_STATUS_PAGE || 'edunetguard'}`);
 });

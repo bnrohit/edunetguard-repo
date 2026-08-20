@@ -12,6 +12,7 @@ import {
   Monitor,
   Shield,
   Wrench,
+  Radio,
 } from 'lucide-react';
 import StatusHeader from './components/StatusHeader';
 import ServiceGroup from './components/ServiceGroup';
@@ -40,12 +41,12 @@ function MetricCard({ label, value, helper, icon: Icon, tone = 'slate' }) {
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">{label}</p>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-gray-950">{value}</p>
-          <p className="mt-1 text-sm text-gray-500">{helper}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</p>
+          <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{value}</p>
+          <p className="mt-1 text-sm text-slate-500">{helper}</p>
         </div>
         <div className={`p-2.5 rounded-xl border ${tones[tone] || tones.slate}`}>
           <Icon className="w-5 h-5" />
@@ -77,7 +78,7 @@ function App() {
       setError(null);
     } catch (err) {
       console.error('Failed to fetch data:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to connect to monitoring service');
+      setError(err.response?.data?.message || err.message || 'Unable to reach the EduNetGuard monitoring service');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -93,17 +94,21 @@ function App() {
   if (loading) return <LoadingState schoolName={config?.school?.name} />;
   if (error) return <ErrorState error={error} onRetry={fetchData} schoolName={config?.school?.name} />;
 
+  // Demo/sample payloads are never presented as production telemetry.
+  const liveConnected = Boolean(status?.source?.connected) && !status?.demo_mode;
+  const services = liveConnected ? (status?.services || []) : [];
+
   const groupedServices = {};
-  const services = status?.services || [];
   services.forEach((service) => {
-    const group = service.group || 'General';
+    const rawGroup = service.group || 'Infrastructure Services';
+    const group = rawGroup.toLowerCase() === 'services' ? 'Infrastructure Services' : rawGroup;
     if (!groupedServices[group]) groupedServices[group] = [];
     groupedServices[group].push(service);
   });
 
   const schoolName = config?.school?.name || 'School District';
   const productName = config?.brand?.productName || 'EduNetGuard';
-  const tagline = config?.brand?.tagline || 'K-12 Network Continuity & Infrastructure Monitoring';
+  const tagline = config?.brand?.tagline || 'Network Operations & Service Assurance';
   const repositoryUrl = config?.brand?.repositoryUrl || 'https://github.com/bnrohit/edunetguard-repo';
   const primaryColor = config?.theme?.primaryColor || '#2563eb';
 
@@ -111,40 +116,41 @@ function App() {
   const downCount = services.filter((service) => service.status === 'down').length;
   const maintenanceCount = services.filter((service) => service.status === 'maintenance').length;
   const attentionCount = services.filter((service) => ['down', 'pending'].includes(service.status)).length;
-  const uptime = Number(status?.overall?.uptime_percentage || 0).toFixed(2);
+  const uptime = liveConnected ? Number(status?.overall?.uptime_percentage || 0).toFixed(2) : '—';
 
   const overallPresentation = {
     operational: {
-      title: 'Network continuity is healthy',
-      description: 'Published services are reporting normal operation.',
+      title: 'All monitored infrastructure operational',
+      description: 'Critical district services are responding within expected operating thresholds.',
       icon: CheckCircle,
       badge: 'Operational',
       badgeClass: 'bg-emerald-400/15 text-emerald-200 border-emerald-400/30',
     },
     partial_outage: {
       title: 'Service degradation detected',
-      description: 'One or more monitored services need attention.',
+      description: 'One or more monitored services require operator attention.',
       icon: AlertCircle,
       badge: 'Degraded',
       badgeClass: 'bg-amber-400/15 text-amber-200 border-amber-400/30',
     },
     major_outage: {
-      title: 'Major service outage detected',
-      description: 'Multiple critical services are unavailable.',
+      title: 'Major infrastructure outage detected',
+      description: 'Multiple monitored services are unavailable. Incident response is required.',
       icon: XCircle,
-      badge: 'Major outage',
+      badge: 'Major Outage',
       badgeClass: 'bg-red-400/15 text-red-200 border-red-400/30',
     },
     unknown: {
-      title: 'Monitoring data is not ready',
-      description: 'Publish the configured Uptime Kuma status page and add monitors.',
-      icon: AlertCircle,
-      badge: 'Unknown',
+      title: 'Monitoring telemetry unavailable',
+      description: 'EduNetGuard is waiting for a verified live monitoring source.',
+      icon: Radio,
+      badge: 'Telemetry Unavailable',
       badgeClass: 'bg-slate-400/15 text-slate-200 border-slate-400/30',
     },
   };
 
-  const overall = overallPresentation[status?.overall?.status] || overallPresentation.unknown;
+  const effectiveStatus = liveConnected ? status?.overall?.status : 'unknown';
+  const overall = overallPresentation[effectiveStatus] || overallPresentation.unknown;
   const OverallIcon = overall.icon;
 
   return (
@@ -164,23 +170,10 @@ function App() {
         lastUpdated={lastUpdated}
         onRefresh={fetchData}
         refreshing={refreshing}
-        demoMode={Boolean(status?.demo_mode)}
-        connected={Boolean(status?.source?.connected)}
+        connected={liveConnected}
       />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
-        {status?.demo_mode && (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-amber-700 mt-0.5 flex-none" />
-            <div>
-              <p className="font-semibold text-amber-900">Demo data is currently displayed</p>
-              <p className="text-sm text-amber-800 mt-1">
-                {status?.warning || 'Connect and publish the EduNetGuard Uptime Kuma status page to switch to live monitoring.'}
-              </p>
-            </div>
-          </div>
-        )}
-
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-7 space-y-7">
         <section className="rounded-3xl bg-slate-950 text-white p-6 sm:p-8 shadow-xl overflow-hidden relative">
           <div className="absolute -right-20 -top-24 w-72 h-72 rounded-full bg-primary opacity-20 blur-3xl" />
           <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
@@ -190,7 +183,7 @@ function App() {
               </div>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium text-slate-300">District Operations Overview</p>
+                  <p className="text-sm font-medium text-slate-300">District Infrastructure Status</p>
                   <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${overall.badgeClass}`}>
                     {overall.badge}
                   </span>
@@ -200,58 +193,58 @@ function App() {
               </div>
             </div>
 
-            <div className="lg:text-right">
-              <p className="text-sm text-slate-400">Monitoring source</p>
-              <p className="font-semibold mt-1 flex lg:justify-end items-center gap-2">
-                <Monitor className="w-4 h-4" />
-                {status?.source?.engine || 'EduNetGuard'}
+            <div className="lg:text-right min-w-[190px]">
+              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Operations Telemetry</p>
+              <p className="font-semibold mt-2 flex lg:justify-end items-center gap-2">
+                <span className={`w-2.5 h-2.5 rounded-full ${liveConnected ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+                {liveConnected ? 'Connected' : 'Unavailable'}
               </p>
-              {status?.source?.status_page_title && (
-                <p className="text-xs text-slate-400 mt-1">{status.source.status_page_title}</p>
-              )}
+              <p className="text-xs text-slate-400 mt-1">
+                {liveConnected ? (status?.source?.status_page_title || 'District monitoring fabric') : 'No verified live telemetry'}
+              </p>
             </div>
           </div>
         </section>
 
         <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <MetricCard
-            label="Monitored Services"
+            label="Active Monitors"
             value={services.length}
-            helper="Published to EduNetGuard"
+            helper="Across district infrastructure"
             icon={Monitor}
             tone="blue"
           />
           <MetricCard
-            label="Operational"
+            label="Healthy Services"
             value={operationalCount}
-            helper={`${services.length ? Math.round((operationalCount / services.length) * 100) : 0}% currently healthy`}
+            helper={liveConnected ? `${services.length ? Math.round((operationalCount / services.length) * 100) : 0}% within normal thresholds` : 'Waiting for live telemetry'}
             icon={CheckCircle}
-            tone="green"
+            tone={liveConnected ? 'green' : 'slate'}
           />
           <MetricCard
-            label="Needs Attention"
+            label="Active Alerts"
             value={attentionCount}
-            helper={maintenanceCount ? `${maintenanceCount} in maintenance` : 'No maintenance active'}
+            helper={maintenanceCount ? `${maintenanceCount} service${maintenanceCount === 1 ? '' : 's'} in maintenance` : attentionCount ? 'Operator attention required' : 'No active service alerts'}
             icon={attentionCount ? AlertCircle : Shield}
-            tone={attentionCount ? 'red' : 'green'}
+            tone={attentionCount ? 'red' : liveConnected ? 'green' : 'slate'}
           />
           <MetricCard
-            label="24h Continuity"
-            value={`${uptime}%`}
-            helper={downCount ? `${downCount} service${downCount === 1 ? '' : 's'} down` : 'Across published monitors'}
+            label="24h Availability"
+            value={liveConnected ? `${uptime}%` : '—'}
+            helper={downCount ? `${downCount} service${downCount === 1 ? '' : 's'} currently unavailable` : 'Rolling service availability'}
             icon={Activity}
-            tone={downCount ? 'amber' : 'green'}
+            tone={downCount ? 'amber' : liveConnected ? 'green' : 'slate'}
           />
         </section>
 
-        {status?.incident && (
+        {status?.incident && liveConnected && (
           <section className="rounded-2xl border border-amber-200 bg-white p-5 shadow-sm">
             <div className="flex items-start gap-3">
               <Wrench className="w-5 h-5 text-amber-600 mt-0.5" />
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Active Incident</p>
-                <h3 className="font-bold text-gray-950 mt-1">{status.incident.title}</h3>
-                {status.incident.content && <p className="text-sm text-gray-600 mt-2">{status.incident.content}</p>}
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Active Incident</p>
+                <h3 className="font-bold text-slate-950 mt-1">{status.incident.title}</h3>
+                {status.incident.content && <p className="text-sm text-slate-600 mt-2">{status.incident.content}</p>}
               </div>
             </div>
           </section>
@@ -260,9 +253,9 @@ function App() {
         <section>
           <div className="flex items-end justify-between gap-4 mb-4">
             <div>
-              <p className="text-sm font-semibold text-primary">NETWORK & SERVICE HEALTH</p>
-              <h2 className="text-2xl font-bold mt-1">Continuity by service group</h2>
-              <p className="text-sm text-gray-500 mt-1">Live status, response time, and 24-hour availability from the monitoring engine.</p>
+              <p className="text-sm font-semibold text-primary uppercase tracking-[0.08em]">Infrastructure Health</p>
+              <h2 className="text-2xl font-bold mt-1">Service assurance by operational group</h2>
+              <p className="text-sm text-slate-500 mt-1">Current state, response time, and rolling 24-hour availability for monitored infrastructure.</p>
             </div>
           </div>
 
@@ -277,18 +270,18 @@ function App() {
             ))}
 
             {services.length === 0 && (
-              <div className="bg-white rounded-2xl border border-gray-200 p-10 text-center shadow-sm">
-                <Monitor className="w-10 h-10 text-gray-300 mx-auto" />
-                <h3 className="font-semibold text-gray-900 mt-4">No published monitors found</h3>
-                <p className="text-sm text-gray-500 mt-2 max-w-xl mx-auto">
-                  Add monitors to the Uptime Kuma status page configured for EduNetGuard, then refresh this dashboard.
+              <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center shadow-sm">
+                <Radio className="w-10 h-10 text-slate-300 mx-auto" />
+                <h3 className="font-semibold text-slate-900 mt-4">Live monitoring telemetry is unavailable</h3>
+                <p className="text-sm text-slate-500 mt-2 max-w-xl mx-auto">
+                  EduNetGuard will display infrastructure health when the configured monitoring source is connected and verified.
                 </p>
               </div>
             )}
           </div>
         </section>
 
-        {config?.display?.showIncidentHistory && <IncidentHistory />}
+        {config?.display?.showIncidentHistory && liveConnected && <IncidentHistory />}
       </main>
 
       <Footer

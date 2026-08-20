@@ -30,7 +30,7 @@ services:
       - UPTIME_KUMA_URL=${UPTIME_KUMA_URL:-http://uptime-kuma:3001}
       - UPTIME_KUMA_STATUS_PAGE=${UPTIME_KUMA_STATUS_PAGE:-edunetguard}
       - CACHE_TTL=${CACHE_TTL:-30}
-      - ALLOW_DEMO_FALLBACK=${ALLOW_DEMO_FALLBACK:-true}
+      - ALLOW_DEMO_FALLBACK=${ALLOW_DEMO_FALLBACK:-false}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost}
     volumes:
       - ./config:/app/config:ro
