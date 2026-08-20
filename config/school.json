@@ -1,11 +1,11 @@
 {
   "brand": {
     "productName": "EduNetGuard",
-    "tagline": "Network Operations & Service Assurance",
+    "tagline": "Live Network Operations & Service Assurance",
     "repositoryUrl": "https://github.com/bnrohit/edunetguard-repo"
   },
   "school": {
-    "name": "Gallup-McKinley County Schools",
+    "name": "EduNetGuard",
     "logo": null,
     "timezone": "America/Denver",
     "contactEmail": ""
@@ -24,7 +24,7 @@
     { "id": "network", "name": "Network Services", "icon": "wifi" },
     { "id": "servers", "name": "Servers & Virtualization", "icon": "server" },
     { "id": "wireless", "name": "Wireless Infrastructure", "icon": "wifi" },
-    { "id": "schools", "name": "School Sites", "icon": "building" },
+    { "id": "sites", "name": "Site Connectivity", "icon": "building" },
     { "id": "learning", "name": "Learning Platforms", "icon": "book" },
     { "id": "facilities", "name": "Facilities & Safety", "icon": "building" }
   ]
