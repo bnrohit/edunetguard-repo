@@ -4,8 +4,7 @@ import { formatDistanceToNow } from 'date-fns';
 
 function StatusHeader({
   productName = 'EduNetGuard',
-  tagline = 'Network Operations & Service Assurance',
-  schoolName,
+  tagline = 'Live Network Operations & Service Assurance',
   lastUpdated,
   onRefresh,
   refreshing,
@@ -23,10 +22,10 @@ function StatusHeader({
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl font-extrabold tracking-tight text-slate-950">{productName}</h1>
                 <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 text-[10px] font-bold uppercase tracking-[0.12em]">
-                  Network Operations
+                  Live Network Operations
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-slate-500 truncate">{schoolName} · {tagline}</p>
+              <p className="text-xs sm:text-sm text-slate-500 truncate">{tagline}</p>
             </div>
           </div>
 
@@ -37,7 +36,7 @@ function StatusHeader({
                 : 'bg-slate-50 text-slate-600 border-slate-200'
             }`}>
               {connected ? <Radio className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
-              {connected ? 'Live Operations' : 'Telemetry Unavailable'}
+              {connected ? 'Live' : 'Telemetry Unavailable'}
             </div>
 
             {lastUpdated && (
