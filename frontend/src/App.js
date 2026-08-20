@@ -91,10 +91,9 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
-  if (loading) return <LoadingState schoolName={config?.school?.name} />;
-  if (error) return <ErrorState error={error} onRetry={fetchData} schoolName={config?.school?.name} />;
+  if (loading) return <LoadingState />;
+  if (error) return <ErrorState error={error} onRetry={fetchData} />;
 
-  // Demo/sample payloads are never presented as production telemetry.
   const liveConnected = Boolean(status?.source?.connected) && !status?.demo_mode;
   const services = liveConnected ? (status?.services || []) : [];
 
@@ -106,9 +105,8 @@ function App() {
     groupedServices[group].push(service);
   });
 
-  const schoolName = config?.school?.name || 'School District';
   const productName = config?.brand?.productName || 'EduNetGuard';
-  const tagline = config?.brand?.tagline || 'Network Operations & Service Assurance';
+  const tagline = config?.brand?.tagline || 'Live Network Operations & Service Assurance';
   const repositoryUrl = config?.brand?.repositoryUrl || 'https://github.com/bnrohit/edunetguard-repo';
   const primaryColor = config?.theme?.primaryColor || '#2563eb';
 
@@ -121,7 +119,7 @@ function App() {
   const overallPresentation = {
     operational: {
       title: 'All monitored infrastructure operational',
-      description: 'Critical district services are responding within expected operating thresholds.',
+      description: 'Critical monitored services are responding within expected operating thresholds.',
       icon: CheckCircle,
       badge: 'Operational',
       badgeClass: 'bg-emerald-400/15 text-emerald-200 border-emerald-400/30',
@@ -166,7 +164,6 @@ function App() {
       <StatusHeader
         productName={productName}
         tagline={tagline}
-        schoolName={schoolName}
         lastUpdated={lastUpdated}
         onRefresh={fetchData}
         refreshing={refreshing}
@@ -183,7 +180,7 @@ function App() {
               </div>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium text-slate-300">District Infrastructure Status</p>
+                  <p className="text-sm font-medium text-slate-300">Live Infrastructure Status</p>
                   <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${overall.badgeClass}`}>
                     {overall.badge}
                   </span>
@@ -194,13 +191,13 @@ function App() {
             </div>
 
             <div className="lg:text-right min-w-[190px]">
-              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Operations Telemetry</p>
+              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Live Telemetry</p>
               <p className="font-semibold mt-2 flex lg:justify-end items-center gap-2">
                 <span className={`w-2.5 h-2.5 rounded-full ${liveConnected ? 'bg-emerald-400' : 'bg-slate-500'}`} />
                 {liveConnected ? 'Connected' : 'Unavailable'}
               </p>
               <p className="text-xs text-slate-400 mt-1">
-                {liveConnected ? (status?.source?.status_page_title || 'District monitoring fabric') : 'No verified live telemetry'}
+                {liveConnected ? (status?.source?.status_page_title || 'EduNetGuard monitoring fabric') : 'No verified live telemetry'}
               </p>
             </div>
           </div>
@@ -210,7 +207,7 @@ function App() {
           <MetricCard
             label="Active Monitors"
             value={services.length}
-            helper="Across district infrastructure"
+            helper="Across connected infrastructure"
             icon={Monitor}
             tone="blue"
           />
@@ -285,9 +282,7 @@ function App() {
       </main>
 
       <Footer
-        schoolName={schoolName}
         productName={productName}
-        contactEmail={config?.school?.contactEmail}
         repositoryUrl={repositoryUrl}
       />
     </div>
