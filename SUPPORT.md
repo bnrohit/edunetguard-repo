@@ -25,6 +25,7 @@ Support is always optional.
 - Core monitoring features are not locked behind a donation.
 - Donors do not receive privileged monitoring access or hidden capabilities.
 - Community support is used to help sustain and improve the project.
+- Community contributions are voluntary project support and are **not represented as tax-deductible charitable donations** unless the maintainer later establishes and documents an applicable charitable status.
 
 ## Stripe support
 
