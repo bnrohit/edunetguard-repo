@@ -260,6 +260,14 @@ Uptime Kuma: `http://localhost:3001`
 
 ---
 
+## ❤️ Support Open Source
+
+EduNetGuard is intended to remain **free and open source**. If it helps your team monitor infrastructure, communicate outages, or reduce troubleshooting time, optional community support can help fund maintenance, testing, documentation, hosting, security hardening, and new capabilities.
+
+See [`SUPPORT.md`](SUPPORT.md) for the support policy and Stripe checkout status. Donations never unlock hidden features or privileged access.
+
+---
+
 ## Roadmap
 
 Planned K-12 capabilities include:
