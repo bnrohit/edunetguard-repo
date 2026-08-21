@@ -27,15 +27,13 @@ Support is always optional.
 - Community support is used to help sustain and improve the project.
 - Community contributions are voluntary project support and are **not represented as tax-deductible charitable donations** unless the maintainer later establishes and documents an applicable charitable status.
 
-## Stripe support
+## ❤️ Support with Stripe
 
-A Stripe-hosted donation checkout is being prepared so payment-card information is handled by Stripe rather than by EduNetGuard or GitHub.
+You can make an optional one-time contribution using the Stripe-hosted checkout:
 
-**Live donation link status:** not yet published.
+**[Support EduNetGuard and the open-source project ecosystem](https://buy.stripe.com/00wdR99fp2R7aoHfku3Ru00)**
 
-The connected Stripe account used during development is currently a **sandbox/test account**, so this repository intentionally does not publish that test link as if it accepted real donations. Once the maintainer enables a live-mode Stripe account, this page and GitHub funding metadata can be updated with the production Stripe donation URL.
-
-When enabled, the intended Stripe checkout will be a **pay-what-you-want, one-time contribution** with a clear statement that support is optional and that EduNetGuard remains free and open source.
+Payment-card information is handled by Stripe rather than by EduNetGuard or GitHub. Support is optional and does not unlock paid features, hidden capabilities, or privileged access.
 
 ## Other ways to help
 
