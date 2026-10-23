@@ -66,7 +66,7 @@ describe('EduNetGuard user-owned monitoring', () => {
       address: '10.250.25.61',
     });
 
-    await expect(policy.resolveAllowedTarget('10.64.1.1')).rejects.toThrow('not in USER_MONITOR_ALLOWED_CIDRS');
+    await expect(policy.resolveAllowedTarget('10.64.1.1')).rejects.toThrow('not in the administrator-approved CIDRs');
     await expect(policy.resolveAllowedTarget('127.0.0.1')).rejects.toThrow('blocked by the monitoring policy');
   });
 

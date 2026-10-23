@@ -107,3 +107,7 @@ EduNetGuard v0.6 adds automatic device identification for personal monitors.
 - Discovery failure does not disable the normal uptime monitor.
 
 Administrators should keep `USER_MONITOR_ALLOWED_CIDRS` narrow. Smart discovery does not change the authorization boundary established by the monitor target policy.
+
+## Persistent CIDR policy (v0.7)
+
+Only EduNetGuard administrators can change the private IPv4 monitoring allowlist through a password-verified, rate-limited endpoint. Updates are stored with restricted file permissions in the persistent user-data volume. The policy is applied on every monitor resolution and at discovery boundaries; invalid or corrupt saved policies fail closed. Approved networks grant monitoring reachability, so configure the narrowest necessary ranges and limit who can register as an administrator. The app never runs subnet sweeps, and public IPv4 is never Nmap scanned. Password-protected SNMP and exact hardware inventory are not implemented in this version.

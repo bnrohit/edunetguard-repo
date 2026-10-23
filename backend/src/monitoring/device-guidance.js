@@ -1,85 +1,100 @@
 function evidenceText(monitor, discovery) {
   const pieces = [
-    monitor?.name,
-    monitor?.target,
+    monitor?.name, monitor?.target,
     ...(discovery?.reverseDns || []),
+    discovery?.sshBanner,
     ...(discovery?.openPorts || []).flatMap((item) => [item.service, item.product]),
     ...(discovery?.web || []).flatMap((item) => [
-      item.title,
-      item.server,
-      item.poweredBy,
-      item.certificate?.subject,
-      item.certificate?.issuer,
+      item.title, item.server, item.poweredBy,
+      item.certificate?.subject, item.certificate?.issuer,
     ]),
   ];
   return pieces.filter(Boolean).join(' ').toLowerCase();
 }
-
 function detectedProduct(discovery) {
-  const products = (discovery?.openPorts || [])
-    .map((item) => item.product)
-    .filter(Boolean);
-
-  const generic = /openssh|nginx|apache|microsoft httpapi|lighttpd|dropbear|ssl|httpd/i;
+  const products = (discovery?.openPorts || []).map((item) => item.product).filter(Boolean);
+  const generic = /^(openssh|nginx|apache|microsoft httpapi|lighttpd|dropbear|ssl|httpd)(?:\s|\/|$)/i;
   return products.find((item) => !generic.test(item)) || null;
 }
-
 function classifyDevice(monitor, discovery) {
-  const text = evidenceText(monitor, discovery);
-  const ports = new Set((discovery?.openPorts || []).map((item) => item.port));
+  const nameText = [monitor?.name, monitor?.target].filter(Boolean).join(' ').toLowerCase();
+  const dnsText = (discovery?.reverseDns || []).join(' ').toLowerCase();
+  const observed = [
+    discovery?.sshBanner,
+    ...(discovery?.openPorts || []).flatMap((p) => [p.product, p.service]),
+    ...(discovery?.web || []).flatMap((w) => [w.title, w.server, w.poweredBy, w.certificate?.subject]),
+  ].filter(Boolean).join(' ').toLowerCase();
+  const evidence = (text, condition) => ({ text, condition });
+  const ports = new Set((discovery?.openPorts || []).map((p) => p.port));
+  const matches = (re) => re.test(observed);
+  const named = (re) => re.test(nameText + ' ' + dnsText);
+  const model = detectedProduct(discovery);
+  const result = (type, label, vendor, confidence, why) => ({
+    type, label, vendor, model, confidence, evidence: why,
+  });
+  if (matches(/vmware vcenter|vsphere client|vcenter server/) || named(/\bvcenter\b/)) {
+    return result('vcenter', 'VMware vCenter', 'VMware', matches(/vcenter|vsphere/) ? 'high' : 'low', ['vCenter service or name']);
+  }
+  if (matches(/vmware esxi|vmware esx/) || named(/\besxi\b/)) {
+    return result('esxi', 'VMware ESXi Host', 'VMware', matches(/esxi|vmware esx/) ? 'high' : 'low', ['ESXi service or name']);
+  }
+  if (matches(/idrac|integrated dell remote access/) || named(/\bidrac\b/)) {
+    return result('dell-server', 'Dell Server / iDRAC', 'Dell', matches(/idrac/) ? 'high' : 'low', ['iDRAC management signature or name']);
+  }
 
-  const match = (regex) => regex.test(text);
-
-  if (match(/vcenter|vsphere client|vmware vcenter/)) {
-    return { type: 'vcenter', label: 'VMware vCenter', vendor: 'VMware', model: detectedProduct(discovery), confidence: 'high' };
+  // Network hardware requires special treatment: SSH alone does not imply Linux.
+  const switchSignature = /cisco.*(catalyst|nx-?os|nexus)|\bcatalyst\b|\bnexus\b|extreme(?:xos| networks)?|\bexos\b|meraki\s+ms\d+|aruba.*switch|procurve|juniper.*ex\d{3,4}/i;
+  const switchName = /\b(?:switch|sw(?:itch)?[-_ ]?\d+|catalyst|nexus|c9\d{3}|ms2\d{2}|ms3\d{2}|x450|x460)\b/i;
+  if (switchSignature.test(observed) || named(switchName)) {
+    const vendor = matches(/cisco|catalyst|nexus|nx-?os/) ? 'Cisco'
+      : matches(/meraki/) ? 'Cisco Meraki'
+      : matches(/extreme|exos|xos/) ? 'Extreme Networks'
+      : matches(/aruba|procurve/) ? 'Aruba/HPE'
+      : matches(/juniper/) ? 'Juniper Networks' : null;
+    return result('switch', 'Network Switch', vendor,
+      switchSignature.test(observed) ? 'high' : 'low',
+      [switchSignature.test(observed) ? 'Switch-specific service/management signature' : 'Switch suggested by hostname or label; verification recommended']);
   }
-  if (match(/esxi|vmware esx/)) {
-    return { type: 'esxi', label: 'VMware ESXi Host', vendor: 'VMware', model: detectedProduct(discovery), confidence: 'high' };
+  if (matches(/meraki.*\bmr\d+|wireless access point|ubiquiti.*\bunifi\b/) || named(/\b(?:wap|wireless ap|access point|mr\d{2,3})\b/)) {
+    return result('access-point', 'Wireless Access Point', matches(/meraki/) ? 'Cisco Meraki' : null,
+      matches(/meraki|unifi|access point/) ? 'high' : 'low', ['Wireless signature or label']);
   }
-  if (match(/idrac|integrated dell remote access/)) {
-    return { type: 'dell-server', label: 'Dell Server / iDRAC', vendor: 'Dell', model: detectedProduct(discovery), confidence: 'high' };
+  if (matches(/vyos|routeros|mikrotik|junos|ios[ -]xe|\brouter\b/) || named(/\b(?:router|rtr|vyos|mikrotik)\b/)) {
+    const vendor = matches(/vyos/) ? 'VyOS' : matches(/mikrotik|routeros/) ? 'MikroTik'
+      : matches(/cisco|ios[ -]xe/) ? 'Cisco' : matches(/junos/) ? 'Juniper Networks' : null;
+    return result('router', 'Router', vendor, matches(/vyos|routeros|mikrotik|junos|ios[ -]xe/) ? 'high' : 'low', ['Routing service or label']);
   }
-  if (match(/cisco.*(nexus|nx-os|catalyst|ios)|nexus|catalyst/)) {
-    return { type: 'switch', label: 'Network Switch', vendor: 'Cisco', model: detectedProduct(discovery), confidence: 'high' };
+  if (matches(/fortigate|palo alto|sonicwall|firewall/) || named(/\bfirewall\b/)) {
+    return result('firewall', 'Firewall',
+      matches(/fortigate/) ? 'Fortinet' : matches(/palo alto/) ? 'Palo Alto Networks' : null,
+      matches(/fortigate|palo alto|sonicwall/) ? 'high' : 'low', ['Security appliance signature or label']);
   }
-  if (match(/extreme|exos|xos/) && ports.has(22)) {
-    return { type: 'switch', label: 'Network Switch', vendor: 'Extreme Networks', model: detectedProduct(discovery), confidence: 'high' };
+  if (matches(/axis|hikvision|dahua|avigilon|onvif/) || named(/\bcamera\b/) || ports.has(554)) {
+    return result('camera', 'IP Camera',
+      matches(/axis/) ? 'Axis' : matches(/hikvision/) ? 'Hikvision' : matches(/dahua/) ? 'Dahua' : null,
+      matches(/axis|hikvision|dahua|avigilon/) ? 'high' : 'medium',
+      ['Video service or camera name']);
   }
-  if (match(/meraki.*\bms\d*/)) {
-    return { type: 'switch', label: 'Meraki Switch', vendor: 'Cisco Meraki', model: detectedProduct(discovery), confidence: 'high' };
-  }
-  if (match(/meraki.*\bmr\d*|wireless access point|\bwap\b|\bap\d*\b/)) {
-    return { type: 'access-point', label: 'Wireless Access Point', vendor: match(/meraki/) ? 'Cisco Meraki' : null, model: detectedProduct(discovery), confidence: 'medium' };
-  }
-  if (match(/vyos|routeros|mikrotik|\brouter\b|\brtr\b/)) {
-    return { type: 'router', label: 'Router', vendor: match(/vyos/) ? 'VyOS' : match(/mikrotik|routeros/) ? 'MikroTik' : null, model: detectedProduct(discovery), confidence: 'medium' };
-  }
-  if (match(/fortigate|palo alto|sonicwall|firewall/)) {
-    return { type: 'firewall', label: 'Firewall', vendor: match(/fortigate/) ? 'Fortinet' : match(/palo alto/) ? 'Palo Alto Networks' : null, model: detectedProduct(discovery), confidence: 'high' };
-  }
-  if (match(/axis|hikvision|dahua|avigilon|onvif|camera/) || ports.has(554)) {
-    return { type: 'camera', label: 'IP Camera', vendor: match(/axis/) ? 'Axis' : match(/hikvision/) ? 'Hikvision' : match(/dahua/) ? 'Dahua' : match(/avigilon/) ? 'Avigilon' : null, model: detectedProduct(discovery), confidence: 'medium' };
-  }
-  if (match(/printer|jetdirect|laserjet|xerox|ricoh|brother/) || ports.has(9100) || ports.has(631)) {
-    return { type: 'printer', label: 'Network Printer', vendor: match(/xerox/) ? 'Xerox' : match(/ricoh/) ? 'Ricoh' : match(/brother/) ? 'Brother' : match(/laserjet|jetdirect/) ? 'HP' : null, model: detectedProduct(discovery), confidence: 'medium' };
+  if (matches(/jetdirect|laserjet|xerox|ricoh|printer/) || ports.has(9100) || ports.has(631)) {
+    return result('printer', 'Network Printer', matches(/xerox/) ? 'Xerox' : matches(/ricoh/) ? 'Ricoh'
+      : matches(/laserjet|jetdirect/) ? 'HP' : null, 'medium', ['Printing protocol or signature']);
   }
   if (monitor?.type === 'dns' || ports.has(53)) {
-    return { type: 'dns-server', label: 'DNS Service', vendor: null, model: detectedProduct(discovery), confidence: monitor?.type === 'dns' ? 'high' : 'medium' };
+    return result('dns-server', 'DNS Service', null, monitor?.type === 'dns' ? 'high' : 'medium', ['DNS monitor/port']);
   }
-  if (match(/windows|microsoft-ds|rdp/) || ports.has(3389) || ports.has(445)) {
-    return { type: 'windows-server', label: 'Windows Server', vendor: 'Microsoft', model: detectedProduct(discovery), confidence: 'medium' };
+  if (matches(/windows|microsoft-ds|rdp/) || ports.has(3389) || ports.has(445)) {
+    return result('windows-server', 'Windows Server', 'Microsoft', 'medium', ['Windows-related service or port']);
   }
-  if (match(/linux|openssh/) && ports.has(22)) {
-    return { type: 'linux-server', label: 'Linux Server', vendor: null, model: detectedProduct(discovery), confidence: 'medium' };
+  if (matches(/linux|ubuntu|debian|red hat|centos/) || named(/\blinux\b/)) {
+    return result('linux-server', 'Linux Server', null, matches(/linux|ubuntu|debian|red hat|centos/) ? 'medium' : 'low', ['Linux service or hostname']);
   }
   if (monitor?.type === 'http') {
-    return { type: 'website', label: 'Website / Web Service', vendor: null, model: detectedProduct(discovery), confidence: 'medium' };
+    return result('website', 'Website / Web Service', null, 'medium', ['HTTP health-check type']);
   }
   if (ports.has(22) || ports.has(23) || ports.has(443)) {
-    return { type: 'network-device', label: 'Network / Infrastructure Device', vendor: null, model: detectedProduct(discovery), confidence: 'low' };
+    return result('network-device', 'Network / Infrastructure Device', null, 'low', ['Management ports open; hardware type not yet verified']);
   }
-
-  return { type: 'generic-device', label: 'Monitored Device', vendor: null, model: detectedProduct(discovery), confidence: 'low' };
+  return result('generic-device', 'Monitored Device', null, 'low', ['Insufficient device-specific evidence']);
 }
 
 const PLAYBOOKS = {

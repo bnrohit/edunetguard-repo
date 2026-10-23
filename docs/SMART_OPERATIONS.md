@@ -1,6 +1,6 @@
 # EduNetGuard Smart Operations
 
-EduNetGuard v0.6 turns a monitor list into a simple operator workflow.
+EduNetGuard v0.7 turns a monitor list into a simple operator workflow.
 
 ## Operator workflow
 
@@ -40,10 +40,10 @@ For all validated targets:
 
 For administrator-approved **private** targets only:
 
-- one-host Nmap TCP connect scan
-- `-Pn -sT -sV --version-light -T3`
+- one ICMP reachability check and a one-host Nmap TCP connect scan
+- `-n -Pn -sT -sV --version-light -T3 --max-retries 1` with XML result parsing
 - fixed common infrastructure/service ports only
-- per-host timeout
+- a best-effort SSH banner check when TCP/22 is open\n- per-host timeout
 
 EduNetGuard does not run:
 
@@ -121,7 +121,7 @@ USER_MONITOR_DISCOVERY_TIMEOUT_SECONDS=20
 USER_MONITOR_ALLOWED_CIDRS=
 ```
 
-Nmap is used only when the validated target resolves to a private address already allowed by `USER_MONITOR_ALLOWED_CIDRS`.
+The administrator can now update these ranges in the **Admin Console → User-Owned Monitors → Network Discovery Policy** after password verification. The initial env setting is a default only until the first save. The persistent policy is checked on every new probe.\n\nNmap is used only when the target resolves to an explicitly allowed private address. It does not scan the CIDR itself. SSH-only services cannot reliably distinguish routers, switches and Linux servers; confidence is shown accordingly.
 
 Manual **Identify Again** requests are rate-limited.
 
@@ -132,7 +132,7 @@ EduNetGuard stores structured discovery facts in the existing `edunetguard-user-
 - resolved IP
 - reverse DNS names
 - detected open ports/services
-- limited web/TLS hints
+- limited web/TLS hints, SSH banner, and ICMP result
 - device class/vendor/model when supported by evidence
 - discovery timestamp
 

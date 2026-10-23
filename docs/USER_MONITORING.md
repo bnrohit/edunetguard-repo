@@ -82,3 +82,7 @@ After a monitor is created, device discovery runs separately from the uptime che
 When a monitor is Down, open it to see a short device-specific troubleshooting playbook and a plain-language message that can be copied to another administrator.
 
 Use **Identify Again** after a device replacement, IP reassignment, firmware change, or when the original classification was incomplete.
+
+## Admin-managed private network approvals (v0.7)
+
+Admins can edit approved private IPv4 CIDRs under **Admin → User-Owned Monitors → Network Discovery Policy**. Changes require re-entering the administrator account password, are stored persistently in the user-data volume, and take effect for subsequent checks without a container restart. Each entry must fit inside an RFC1918 or CGNAT block. Broad public ranges, loopback and link-local networks cannot be approved. Existing `.env` CIDRs are a seed only until the first saved dashboard policy. Scanning always targets one validated host, never an entire CIDR.

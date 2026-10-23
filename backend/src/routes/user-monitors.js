@@ -3,6 +3,8 @@ const rateLimit = require('express-rate-limit');
 const router = express.Router();
 
 const { requireAuth, requireAdmin } = require('./auth');
+const { authenticate } = require('../auth/store');
+const { saveAllowedCidrs } = require('../monitoring/cidr-policy');
 const store = require('../monitoring/user-monitor-store');
 const runner = require('../monitoring/user-monitor-runner');
 const { discoverMonitor } = require('../monitoring/device-discovery');
@@ -13,6 +15,14 @@ const {
   validateTarget,
   policySummary,
 } = require('../monitoring/user-monitor-policy');
+
+const policyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many policy changes. Try again later.' },
+});
 
 const discoveryLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -33,6 +43,9 @@ const manualCheckLimiter = rateLimit({
 async function discoverAndSave(monitor, ownerId, allowAdmin = false) {
   const discovery = await discoverMonitor(monitor);
   const profile = classifyDevice(monitor, discovery);
+  const current = store.findById(monitor.id);
+  // A queued discovery cannot overwrite results for a target edited during its scan.
+  if (!current || current.target !== monitor.target || current.type !== monitor.type) return current;
   return store.updateDiscovery(monitor.id, ownerId, discovery, profile, allowAdmin);
 }
 
@@ -53,6 +66,27 @@ function notFoundOrDenied(result, res) {
 
 router.get('/policy', requireAuth, (req, res) => {
   res.json(policySummary());
+});
+
+router.patch('/admin/policy', policyLimiter, requireAdmin, (req, res) => {
+  try {
+    const verified = authenticate(req.user.username, req.body?.password);
+    if (!verified || verified.role !== 'admin') {
+      return res.status(401).json({ error: 'Administrator password verification failed.' });
+    }
+    if (!Array.isArray(req.body?.allowedPrivateCidrs)) {
+      return res.status(400).json({ error: 'allowedPrivateCidrs must be an array of IPv4 CIDRs.' });
+    }
+    const cidrs = saveAllowedCidrs(req.body.allowedPrivateCidrs, req.user.username);
+    console.info('Monitoring allowlist updated by admin:', req.user.username, 'CIDR count:', cidrs.length);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({ policy: policySummary() });
+  } catch (error) {
+    console.error('Monitoring policy update failed:', error.message);
+    return res.status(error.statusCode || 500).json({
+      error: error.statusCode ? error.message : 'Unable to save monitoring policy.',
+    });
+  }
 });
 
 router.get('/admin/all', requireAdmin, (req, res) => {

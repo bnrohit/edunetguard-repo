@@ -1,5 +1,6 @@
 const dns = require('dns').promises;
 const net = require('net');
+const { getAllowedCidrs, isApprovedPrivateIp, policySource } = require('./cidr-policy');
 
 const MAX_PER_USER = Math.max(1, parseInt(process.env.USER_MONITOR_MAX_PER_USER || '20', 10));
 const MIN_INTERVAL = Math.max(30, parseInt(process.env.USER_MONITOR_MIN_INTERVAL_SECONDS || '30', 10));
@@ -8,11 +9,6 @@ const DEFAULT_TIMEOUT = Math.max(2, parseInt(process.env.USER_MONITOR_DEFAULT_TI
 const MAX_TIMEOUT = Math.max(DEFAULT_TIMEOUT, parseInt(process.env.USER_MONITOR_MAX_TIMEOUT_SECONDS || '30', 10));
 const ALLOW_PUBLIC = process.env.USER_MONITOR_ALLOW_PUBLIC_TARGETS !== 'false';
 const AUTO_DISCOVERY = process.env.USER_MONITOR_AUTO_DISCOVERY !== 'false';
-
-const ALLOWED_CIDRS = String(process.env.USER_MONITOR_ALLOWED_CIDRS || '')
-  .split(',')
-  .map((item) => item.trim())
-  .filter(Boolean);
 
 function ipv4ToInt(ip) {
   const parts = ip.split('.').map(Number);
@@ -46,7 +42,7 @@ function isBlockedIpv4(ip) {
 }
 
 function allowedPrivateIpv4(ip) {
-  return ALLOWED_CIDRS.some((cidr) => ipv4InCidr(ip, cidr));
+  return isApprovedPrivateIp(ip);
 }
 
 function isPrivateAddress(address) {
@@ -64,6 +60,7 @@ function isBlockedIpv6(ip) {
   return value === '::' ||
     value === '::1' ||
     value.startsWith('fe80:') ||
+    value.startsWith('::ffff:') ||
     value.startsWith('ff') ||
     value.startsWith('fc') ||
     value.startsWith('fd');
@@ -78,7 +75,7 @@ function assertAddressAllowed(address) {
       throw Object.assign(new Error('This target address is blocked by the monitoring policy.'), { statusCode: 403 });
     }
     if (isPrivateIpv4(address) && !allowedPrivateIpv4(address)) {
-      throw Object.assign(new Error('This private address is not in USER_MONITOR_ALLOWED_CIDRS.'), { statusCode: 403 });
+      throw Object.assign(new Error('This private address is not in the administrator-approved CIDRs. Ask an EduNetGuard admin to add its subnet under Admin → Network Discovery Policy.'), { statusCode: 403 });
     }
     if (!isPrivateIpv4(address) && !ALLOW_PUBLIC) {
       throw Object.assign(new Error('Public monitoring targets are disabled by the administrator.'), { statusCode: 403 });
@@ -204,7 +201,8 @@ function policySummary() {
     defaultTimeoutSeconds: DEFAULT_TIMEOUT,
     maxTimeoutSeconds: MAX_TIMEOUT,
     publicTargetsAllowed: ALLOW_PUBLIC,
-    allowedPrivateCidrs: ALLOWED_CIDRS,
+    allowedPrivateCidrs: getAllowedCidrs(),
+    cidrPolicySource: policySource(),
     autoDiscoveryEnabled: AUTO_DISCOVERY,
   };
 }
@@ -216,4 +214,5 @@ module.exports = {
   resolveAllowedTarget,
   policySummary,
   isPrivateAddress,
+  assertAddressAllowed,
 };

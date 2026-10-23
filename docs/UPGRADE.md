@@ -1,102 +1,114 @@
-# EduNetGuard v0.6 Upgrade Guide
+# EduNetGuard v0.7 — Upgrade and device identification
 
-v0.6 adds smart status cubes, automatic device identification, and device-specific troubleshooting guidance.
+v0.7 adds administrator-editable and persistent private IPv4 CIDR approvals, ICMP
+reachability, Nmap XML service fingerprints, SSH server-banner hints, and stronger
+switch/router/device classification with confidence and evidence.
 
-## Data preserved
+## Before updating
 
-The existing persistent volumes remain unchanged:
-
-- `uptime-kuma-data` — district monitoring configuration/history
-- `edunetguard-user-data` — accounts, join-code state, personal monitors, discovery metadata, and monitor history
-
-Never run:
-
-```bash
-docker compose down -v
-```
-
-## 1. Update
+Run on the existing EduNetGuard Linux Docker server. Verify the current project
+directory; do not clone a second installation over a working one.
 
 ```bash
 cd ~/edunetguard-repo
+git status --short
+docker compose ps
+```
+
+Record or safely back up your existing `.env`, the backend's persistent
+`edunetguard-user-data` volume, and the Uptime Kuma data. Do not upload them
+to GitHub. If you have uncommitted repository changes, resolve them before
+pulling; `git pull --ff-only` deliberately refuses merges.
+
+```bash
+mkdir -p backups
+cp -p .env "backups/.env.$(date +%Y%m%d-%H%M%S)"
+docker compose exec -T backend sh -c 'cd /app/user-data && tar -czf - .' \
+  > "backups/user-data.$(date +%Y%m%d-%H%M%S).tar.gz"
+```
+
+For a consistent Uptime Kuma SQLite backup, use its built-in backup/export or
+stop the engine and snapshot its Docker volume before upgrading. Do not run
+`docker compose down -v` or remove any volumes.
+
+## Install approved release (after merging PR)
+
+```bash
 git checkout main
 git fetch origin
 git pull --ff-only origin main
+docker compose config -q
+docker compose build --pull frontend backend
+docker compose up -d --no-deps backend frontend
+docker compose ps
 ```
 
-Expected frontend/backend version: `0.6.0`.
+This upgrade does **not** require rebuilding or pulling Uptime Kuma.
 
-## 2. Configure discovery
+## Enable internal networks without an immediate admin dashboard session
 
-Keep your existing personal-monitor policy and add:
+The legacy `.env` setting remains a first-boot default:
 
 ```env
+USER_MONITOR_ALLOWED_CIDRS=10.128.0.0/16,10.250.0.0/16
 USER_MONITOR_AUTO_DISCOVERY=true
 USER_MONITOR_DISCOVERY_TIMEOUT_SECONDS=20
 ```
 
-Private targets are fingerprinted only when they are already allowed by:
+Only add private subnets that you are authorized to monitor. Do not blindly copy
+example networks to a production deployment. Once an administrator clicks
+**Save Approved CIDRs**, the saved policy in `/app/user-data/monitor-allowlist.json`
+becomes authoritative. Later `.env` changes will not overwrite dashboard
+policy. Admin may clear all CIDRs to deny internal monitoring.
 
-```env
-USER_MONITOR_ALLOWED_CIDRS=10.128.0.0/16,10.250.0.0/16
-```
+If you change `.env` before dashboard management is enabled, restart only the
+backend: `docker compose up -d --no-deps --force-recreate backend`.
 
-Use only the internal ranges that your authenticated EduNetGuard users are authorized to monitor.
+## Dashboard CIDR management
 
-## 3. Build and apply
+1. Open `http://SERVER:3000/admin` (or your HTTPS reverse proxy).
+2. Go to **User-Owned Monitors → Network Discovery Policy**.
+3. Enter one permitted private IPv4 subnet per line, e.g.
+   `10.128.0.0/16` and `10.250.0.0/16`. Smaller allocations are safer.
+4. Enter your EduNetGuard admin account password and save.
+5. Open a personal monitor's detail view and choose **Identify Again**.
+6. Check ICMP result, open TCP service ports, SSH banner, device type,
+   classification confidence, and any Nmap error messages.
+
+Passwords are used to authenticate the policy update; they are not saved in the
+CIDR policy file. Only administrators can edit these ranges.
+
+## Verify after deploy
 
 ```bash
-docker compose config >/dev/null && echo "Compose OK"
-
-docker compose build --pull frontend backend
-docker compose up -d
-
-sleep 15
 docker compose ps
+docker compose exec -T backend nmap --version | head -2
+docker compose exec -T backend ping -c 1 -W 2 10.128.10.151 || true
+curl -fsS http://127.0.0.1:4000/health && echo
+docker compose logs --tail=80 backend
 ```
 
-The backend image now contains both `ping` and `nmap`.
-
-## 4. Verify
+For an approved private IP, run a complete one-host diagnosis from the container:
 
 ```bash
-echo "===== VERSION ====="
-grep '"version"' frontend/package.json | head -1
-grep '"version"' backend/package.json | head -1
-
-echo
-echo "===== HEALTH ====="
-curl -fsS http://127.0.0.1:4000/health
-echo
-
-echo
-echo "===== DISCOVERY TOOLS ====="
-docker exec edunetguard-backend nmap --version | head -3
-docker exec edunetguard-backend ping -V | head -1 || true
-
-echo
-echo "===== CONTAINERS ====="
-docker compose ps
-
-echo
-echo "===== MDNS ====="
-sudo ss -lunp | grep ':5353' || echo "PASS - UDP/5353 closed"
+bash scripts/diagnose-device.sh 10.128.10.151
 ```
 
-## 5. Existing user monitors
+This prints CIDR validation, ICMP, Nmap open ports, SSH banner, web/TLS hints,
+classification and confidence. It does not scan any subnet. An unapproved
+target is rejected before sending probes.
 
-Existing v0.5 monitors remain valid. They will show under the default site:
+The sample ping is **only** a connectivity test from the container to a
+management address you own; replace `10.128.10.151` with your actual target.
+A failed ping does not necessarily mean the device is down (ICMP may be blocked).
+Use **Identify Again** to test Nmap. Exact switch model identification requires
+a model-specific management banner or an authenticated inventory source.
+An OpenSSH banner alone cannot prove the device is a Linux server.
 
-```text
-My Organization
-```
+## Rollback
 
-Open a monitor and select **Identify Again** to populate its device profile.
-
-You may edit the monitor and assign a more useful site/organization name such as `SSC`, `GPHS`, `NOC`, or `District Websites`.
-
-## 6. New monitor workflow
-
-New monitors automatically schedule device identification after their first health check.
-
-Private approved targets may receive the small single-host Nmap service fingerprint documented in `docs/SMART_OPERATIONS.md`. Public targets receive DNS/HTTP/TLS discovery only.
+Restore the earlier checked-out Git commit and rebuild only frontend/backend.
+Retain the same Docker volumes and `.env`. The new
+`monitor-allowlist.json` is additive; v0.6 ignores it. If rolling back to a
+version without dashboard CIDR management, make sure the correct authorized
+ranges are set in `.env`. Never run `docker compose down -v`.

@@ -4,7 +4,7 @@
 
 EduNetGuard presents a district-focused operations console for service health, response time, uptime, incidents, and grouped infrastructure visibility. A separate monitoring engine runs internally and is not exposed as the user-facing product.
 
-> Status: **v0.6.0** — cube-based operations views, automatic device discovery/classification, and device-specific troubleshooting guidance.
+> Status: **v0.7.0** — persistent admin-managed private CIDRs, enhanced ICMP/Nmap/SSH discovery, and evidence-based device identification.
 
 ---
 
@@ -23,7 +23,7 @@ EduNetGuard is designed to help school IT teams:
 
 ---
 
-## v0.6 features
+## Platform features (v0.7)
 
 - EduNetGuard-branded continuity and network-operations dashboard
 - Invite-only EduNetGuard account creation with a shared user join code
@@ -48,6 +48,10 @@ EduNetGuard is designed to help school IT teams:
 - Default quota of 20 user-owned monitors per account
 - Minimum interval and timeout policy controls
 - Admin Console oversight for every user-owned monitor
+- Admin Console allows password-verified updates to approved private IPv4 CIDRs, persisted in the existing user-data volume
+- CIDR changes apply without restarting Docker; previously authorized targets are rechecked against the current policy
+- Per-device identification checks ICMP reachability, structured Nmap service/product signatures, SSH server banners, and HTTP/TLS hints
+- A low-confidence identification is visibly labeled as unverified instead of inventing hardware details
 - Private/internal targets allowed only from administrator-approved CIDRs
 - Persistent `edunetguard-user-data` Docker volume for accounts/preferences
 - Current Uptime Kuma 2.x monitoring engine behind the EduNetGuard product surface; v2.5.7+ provides SFTP/NTP monitoring, unlimited intervals, expanded notifications, TCP retry fixes, and current Docker security updates
@@ -236,7 +240,7 @@ USER_MONITOR_AUTO_DISCOVERY=true
 USER_MONITOR_DISCOVERY_TIMEOUT_SECONDS=20
 ```
 
-Private/internal IP monitoring is blocked until an administrator explicitly adds allowed CIDRs. Loopback, link-local, multicast, and other unsafe target ranges remain blocked.
+Private/internal IP monitoring is blocked until an administrator explicitly adds allowed CIDRs. Admins can now edit the list under **Admin → User-Owned Monitors → Network Discovery Policy**; edits require the current admin password and are saved to the persistent user-data volume. The `.env` list is only the initial default until the first dashboard save. Loopback, link-local, multicast, and other unsafe target ranges remain blocked.
 
 See [`docs/USER_MONITORING.md`](docs/USER_MONITORING.md).
 
@@ -244,14 +248,14 @@ See [`docs/USER_MONITORING.md`](docs/USER_MONITORING.md).
 
 ## Smart operations and device discovery
 
-EduNetGuard v0.6 is designed to reduce operator stress during an outage.
+EduNetGuard v0.7 is designed to reduce operator stress during an outage.
 
 A user adds a target with a friendly name and **Site / Organization**. EduNetGuard then:
 
 1. runs the normal health check
 2. resolves the target and reverse DNS
-3. for approved private IPs only, runs a small single-host Nmap TCP service fingerprint
-4. inspects safe HTTP/TLS hints when present
+3. for approved private IPs only, performs one ICMP check and small single-host Nmap TCP service fingerprint
+4. checks SSH identification banners and HTTP/TLS hints when present
 5. classifies the likely device/service type
 6. shows a short troubleshooting playbook when that monitor is down
 

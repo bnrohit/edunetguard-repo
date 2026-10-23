@@ -1,7 +1,48 @@
-const { parseGreppable } = require('./device-discovery');
+const { parseGreppable, parseNmapXml } = require('./device-discovery');
 const { classifyDevice, guidanceFor } = require('./device-guidance');
 
 describe('EduNetGuard smart device discovery', () => {
+  test('parses XML service versions from one private host', () => {
+    const xml = `<nmaprun><host><ports>
+      <port protocol="tcp" portid="22"><state state="open" reason="syn-ack"/><service name="ssh" product="Cisco SSH" version="1.25"/></port>
+      <port protocol="tcp" portid="443"><state state="open"/><service name="https" product="Cisco IOS XE" version="17.9"/></port>
+      <port protocol="tcp" portid="80"><state state="closed"/></port>
+    </ports></host></nmaprun>`;
+    expect(parseNmapXml(xml)).toEqual([
+      { port: 22, protocol: 'tcp', service: 'ssh', product: 'Cisco SSH 1.25' },
+      { port: 443, protocol: 'tcp', service: 'https', product: 'Cisco IOS XE 17.9' },
+    ]);
+  });
+
+  test('identifies Catalyst from an observed SSH banner', () => {
+    const profile = classifyDevice({ name: 'SSC device', target: '10.128.10.20', type: 'ping' }, {
+      reverseDns: [], sshBanner: 'SSH-2.0-Cisco-Catalyst',
+      openPorts: [{ port: 22, protocol: 'tcp', service: 'ssh', product: null }], web: [],
+    });
+    expect(profile.type).toBe('switch');
+    expect(profile.vendor).toBe('Cisco');
+    expect(profile.confidence).toBe('high');
+  });
+
+  test('switch label alone is low confidence and does not invent a Cisco model', () => {
+    const profile = classifyDevice({ name: 'GPHS Catalyst C9200 Switch', target: '10.128.10.90', type: 'ping' }, {
+      reverseDns: [], sshBanner: 'SSH-2.0-OpenSSH_8.0',
+      openPorts: [{ port: 22, protocol: 'tcp', service: 'ssh', product: 'OpenSSH 8' }], web: [],
+    });
+    expect(profile.type).toBe('switch');
+    expect(profile.confidence).toBe('low');
+    expect(profile.model).toBeNull();
+    expect(profile.vendor).toBeNull();
+  });
+
+  test('SSH alone is not enough to declare a Linux server', () => {
+    const profile = classifyDevice({ name: 'Unknown host', target: '10.128.10.20', type: 'ping' }, {
+      reverseDns: [], sshBanner: 'SSH-2.0-OpenSSH_8.4',
+      openPorts: [{ port: 22, protocol: 'tcp', service: 'ssh', product: 'OpenSSH 8.4' }], web: [],
+    });
+    expect(profile.type).toBe('network-device');
+  });
+
   test('parses Nmap greppable service output', () => {
     const sample = 'Host: 10.128.10.20 ()\tStatus: Up\nHost: 10.128.10.20 ()\tPorts: 22/open/tcp//ssh//OpenSSH 9.2/, 443/open/tcp//https//VMware vCenter Server 8.0/\tIgnored State: closed (23)';
     const ports = parseGreppable(sample);
