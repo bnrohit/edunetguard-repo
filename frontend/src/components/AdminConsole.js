@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import JoinCodePanel from './JoinCodePanel';
+import AdminUserMonitors from './AdminUserMonitors';
 import {
   Activity,
   ArrowLeft,
@@ -107,7 +108,7 @@ function AdminConsole({
               <span className="font-semibold">{connected ? 'Connected' : 'Needs attention'}</span>
             </div>
             <p className="text-xs text-slate-400 mt-2">
-              API {health?.status === 'healthy' ? 'healthy' : 'status unavailable'} · EduNetGuard {health?.version || 'v0.4.0'}
+              API {health?.status === 'healthy' ? 'healthy' : 'status unavailable'} · EduNetGuard {health?.version || 'v0.5.0'}
             </p>
           </div>
         </div>
@@ -209,6 +210,8 @@ function AdminConsole({
           </div>
         </div>
       </section>
+
+      <AdminUserMonitors />
 
       <JoinCodePanel />
 

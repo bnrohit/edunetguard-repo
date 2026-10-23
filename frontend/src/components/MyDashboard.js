@@ -1,5 +1,6 @@
 import React from 'react';
 import { Activity, CheckCircle, Heart, Star, AlertTriangle } from 'lucide-react';
+import UserMonitorPanel from './UserMonitorPanel';
 
 function StatusPill({ status }) {
   const style = {
@@ -60,11 +61,13 @@ function MyDashboard({ user, services = [], onToggleFavorite, saving }) {
         </div>
       </section>
 
+      <UserMonitorPanel />
+
       <section className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-5 border-b border-slate-100">
-          <h3 className="font-bold text-slate-950">My monitored services</h3>
+          <h3 className="font-bold text-slate-950">Pinned district services</h3>
           <p className="text-sm text-slate-500 mt-1">
-            {favoriteServices.length ? 'Your pinned services appear here.' : 'Use the stars below to build your personal dashboard.'}
+            {favoriteServices.length ? 'District-managed services you pinned appear here.' : 'Use the stars below to pin district-managed services.'}
           </p>
         </div>
 
@@ -103,8 +106,8 @@ function MyDashboard({ user, services = [], onToggleFavorite, saving }) {
 
       <section className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-5 border-b border-slate-100">
-          <h3 className="font-bold text-slate-950">Choose services</h3>
-          <p className="text-sm text-slate-500 mt-1">Each account keeps its own favorite monitor list.</p>
+          <h3 className="font-bold text-slate-950">Choose district services</h3>
+          <p className="text-sm text-slate-500 mt-1">These are centrally managed services. Each account keeps its own favorites.</p>
         </div>
         <div className="divide-y divide-slate-100 max-h-[560px] overflow-auto">
           {services.map((service) => {

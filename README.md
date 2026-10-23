@@ -4,7 +4,7 @@
 
 EduNetGuard presents a district-focused operations console for service health, response time, uptime, incidents, and grouped infrastructure visibility. A separate monitoring engine runs internally and is not exposed as the user-facing product.
 
-> Status: **v0.4.1** — password-gated join-code reveal/rotation in the Admin Console, invite-only accounts, personal dashboards, and current monitoring.
+> Status: **v0.5.0** — user-owned Website/Ping/TCP/DNS monitoring, personal history, ownership controls, quotas, and admin governance.
 
 ---
 
@@ -23,7 +23,7 @@ EduNetGuard is designed to help school IT teams:
 
 ---
 
-## v0.4 features
+## v0.5 features
 
 - EduNetGuard-branded continuity and network-operations dashboard
 - Invite-only EduNetGuard account creation with a shared user join code
@@ -33,7 +33,14 @@ EduNetGuard is designed to help school IT teams:
 - Separate administrator join code for role-aware Admin Console access
 - Salted scrypt password hashing; plaintext passwords are never stored
 - Signed HttpOnly login sessions
-- Personal `/me` dashboard with per-user favorite monitors
+- Personal `/me` dashboard with per-user favorite district monitors
+- User-owned personal monitors: Website/HTTP(S), Ping/IP, TCP Port, and DNS
+- Add/Edit/Delete/Pause/Resume/Check-Now controls on My Dashboard
+- Per-user monitor status history stored persistently
+- Default quota of 20 user-owned monitors per account
+- Minimum interval and timeout policy controls
+- Admin Console oversight for every user-owned monitor
+- Private/internal targets allowed only from administrator-approved CIDRs
 - Persistent `edunetguard-user-data` Docker volume for accounts/preferences
 - Current Uptime Kuma 2.x monitoring engine behind the EduNetGuard product surface; v2.5.7+ provides SFTP/NTP monitoring, unlimited intervals, expanded notifications, TCP retry fixes, and current Docker security updates
 - Integrated EduNetGuard Admin Console with Dashboard/Admin navigation
@@ -73,7 +80,7 @@ EduNetGuard is designed to help school IT teams:
           Internal Monitoring Engine
                loopback :3001
                          │
-        HTTP / Ping / TCP / DNS / other monitors
+        District monitors + user-owned HTTP / Ping / TCP / DNS checks
 ```
 
 EduNetGuard does **not** require an administrator password for its read-only monitoring feed. The native monitoring admin remains available only from the server loopback interface by default.
@@ -193,6 +200,38 @@ See [`docs/ACCOUNTS.md`](docs/ACCOUNTS.md).
 
 ---
 
+## User-owned personal monitoring
+
+Signed-in users can open `/me` and create their own monitors without receiving access to the native monitoring-engine administrator account.
+
+Supported personal monitor types in v0.5:
+
+- Website / HTTP(S)
+- Ping / IPv4/hostname
+- TCP Port
+- DNS Resolution
+
+Each monitor belongs to its creator. Users can edit, pause/resume, manually check, or delete only their own monitors. Administrators can view, pause/resume, or delete any personal monitor from `/admin`.
+
+Default safety policy:
+
+```env
+USER_MONITOR_MAX_PER_USER=20
+USER_MONITOR_MIN_INTERVAL_SECONDS=30
+USER_MONITOR_MAX_INTERVAL_SECONDS=86400
+USER_MONITOR_DEFAULT_TIMEOUT_SECONDS=10
+USER_MONITOR_MAX_TIMEOUT_SECONDS=30
+USER_MONITOR_HISTORY_LIMIT=120
+USER_MONITOR_ALLOW_PUBLIC_TARGETS=true
+USER_MONITOR_ALLOWED_CIDRS=
+```
+
+Private/internal IP monitoring is blocked until an administrator explicitly adds allowed CIDRs. Loopback, link-local, multicast, and other unsafe target ranges remain blocked.
+
+See [`docs/USER_MONITORING.md`](docs/USER_MONITORING.md).
+
+---
+
 ## Branding
 
 Edit:
@@ -277,6 +316,12 @@ The `-v` flag can remove the persistent Uptime Kuma volume.
 | `GET /api/auth/me` | Current signed-in user |
 | `PATCH /api/auth/preferences` | Save personal dashboard favorites |
 | `GET /api/auth/users` | Admin-only account list |
+| `GET /api/user-monitors` | Signed-in user's personal monitors and policy |
+| `POST /api/user-monitors` | Create a personal monitor |
+| `PATCH /api/user-monitors/:id` | Edit or pause/resume an owned monitor |
+| `DELETE /api/user-monitors/:id` | Delete an owned monitor |
+| `POST /api/user-monitors/:id/check` | Run an owned monitor immediately |
+| `GET /api/user-monitors/admin/all` | Admin-only list of all personal monitors |
 
 ---
 
@@ -301,6 +346,9 @@ For production:
 - Rotate a join code immediately if it is disclosed
 - Keep port `4000` loopback-only; expose port `3001` only on a trusted internal interface when one-click monitor administration is required
 - Publish only monitor names appropriate for the dashboard audience
+- Keep `USER_MONITOR_ALLOWED_CIDRS` as narrow as practical; do not grant users arbitrary internal network reachability
+- Personal HTTP monitors disable redirects to reduce server-side request forgery risk
+- Loopback/link-local/multicast targets are blocked even for authenticated users
 - Set `ALLOW_DEMO_FALLBACK=false` after validating live monitoring
 
 See [`docs/SECURITY.md`](docs/SECURITY.md).
