@@ -1,21 +1,18 @@
-# EduNetGuard v0.3 Upgrade Guide
+# EduNetGuard v0.3.1 Upgrade Guide
 
-v0.3 turns EduNetGuard into the only network-facing operations console while keeping the existing monitoring engine and its data intact.
+v0.3.1 adds a branded Admin Console directly inside EduNetGuard.
 
-## What changes
+## New in v0.3.1
 
-- EduNetGuard Continuity Console branding
-- Native monitoring admin binds to `127.0.0.1:3001` instead of all interfaces
-- EduNetGuard backend API binds to `127.0.0.1:4000`
-- User-facing dashboard remains on port `3000`
-- Continuity health score, average response time, slowest response and telemetry freshness
-- Search, status filters and group filters
-- Attention-first service sorting
-- Live operations queue replaces synthetic incident timestamps
-- Monitoring source is presented to users as the EduNetGuard Monitoring Engine
-- Existing persistent monitoring volume is preserved
+- Dashboard / Admin navigation in the EduNetGuard header
+- Admin Console at `/admin`
+- Monitoring engine connectivity and API health
+- Monitor, alert, maintenance and response-time summaries
+- One-click **Open Monitor Management** button
+- Monitoring data remains in the existing persistent volume
+- Backend API remains loopback-only
 
-## Critical data-safety rule
+## Important
 
 Do **not** run:
 
@@ -23,16 +20,31 @@ Do **not** run:
 docker compose down -v
 ```
 
-The `-v` option can remove the persistent monitoring-data volume.
+That can remove the monitoring-data volume.
 
-## Upgrade on an existing server
+## Existing GMCS server
 
-From the existing repository directory:
+On the current internal server, set the monitor-management service to the server's trusted internal interface:
 
 ```bash
 cd ~/edunetguard-repo
 
-git status --short
+grep -q '^KUMA_BIND_IP=' .env 2>/dev/null \
+  && sed -i 's/^KUMA_BIND_IP=.*/KUMA_BIND_IP=10.250.31.192/' .env \
+  || echo 'KUMA_BIND_IP=10.250.31.192' >> .env
+
+grep -q '^KUMA_ADMIN_PORT=' .env 2>/dev/null \
+  && sed -i 's/^KUMA_ADMIN_PORT=.*/KUMA_ADMIN_PORT=3001/' .env \
+  || echo 'KUMA_ADMIN_PORT=3001' >> .env
+```
+
+The monitoring engine keeps its own administrator login. Do not expose port 3001 beyond trusted internal management access.
+
+## Update code and containers
+
+```bash
+cd ~/edunetguard-repo
+
 git checkout main
 git fetch origin
 git pull --ff-only origin main
@@ -44,97 +56,49 @@ docker compose build --pull frontend backend
 docker compose up -d
 
 docker compose ps
-curl -fsS http://127.0.0.1:4000/health
-echo
-curl -fsSI http://127.0.0.1:3000 | head
 ```
 
-The existing `uptime-kuma-data` volume is reused. No monitor history should be deleted by this procedure.
-
-## Verify hardened bindings
+## Verify
 
 ```bash
-docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+echo "===== VERSION ====="
+grep '"version"' frontend/package.json | head -1
+
+echo "===== HEALTH ====="
+curl -fsS http://127.0.0.1:4000/health
+echo
+
+echo "===== FRONTEND ====="
+curl -fsSI http://127.0.0.1:3000 | head
+
+echo "===== PORTS ====="
 sudo ss -lntp | grep -E ':(3000|3001|4000)\b' || true
 ```
 
-Expected behavior:
+Expected GMCS behavior:
 
-- `3000` may listen on the server network for the EduNetGuard dashboard.
-- `3001` should bind only to `127.0.0.1`.
-- `4000` should bind only to `127.0.0.1`.
+- `3000` — EduNetGuard Dashboard and Admin Console
+- `10.250.31.192:3001` — authenticated Monitor Management
+- `127.0.0.1:4000` — backend API only
 
-## Access the monitoring admin after v0.3
+## Use
 
-From an authorized workstation, create an SSH tunnel:
-
-```bash
-ssh -L 3001:127.0.0.1:3001 rohith@<edunetguard-server>
-```
-
-Keep that SSH session open and browse to:
+Normal operations:
 
 ```text
-http://127.0.0.1:3001
+http://10.250.31.192:3000
 ```
 
-The admin interface is no longer directly available from other LAN clients.
-
-## Validate the branded console
-
-Open:
+Admin Console:
 
 ```text
-http://<edunetguard-server>:3000
+http://10.250.31.192:3000/admin
 ```
 
-Verify:
+From there click **Open Monitor Management** when you need to add or edit monitors.
 
-- EduNetGuard / GMCS Network Operations branding
-- no native monitoring-engine branding in the normal user interface
-- live monitor counts and 24-hour availability
-- continuity insights
-- search and filters
-- operational groups
-- operations queue
-- published incident banner, when one exists
+## Security
 
-## Rollback application code
+Uptime Kuma does not support being reliably mounted under a subdirectory such as `/admin`, so EduNetGuard keeps its own branded Admin Console at `/admin` and opens the authenticated monitor editor on its dedicated port when needed.
 
-Find the previous known-good commit:
-
-```bash
-git log --oneline -10
-```
-
-Then:
-
-```bash
-git checkout <previous-known-good-commit>
-docker compose build frontend backend
-docker compose up -d
-```
-
-Do not delete the persistent volume during rollback.
-
-## Troubleshooting
-
-### EduNetGuard reports telemetry unavailable
-
-```bash
-docker compose ps
-docker compose logs --tail=100 backend
-docker compose logs --tail=100 uptime-kuma
-curl -fsS http://127.0.0.1:4000/health
-```
-
-### Need native monitoring administration
-
-Use the SSH tunnel described above. Do not reopen port 3001 to the whole LAN merely for convenience.
-
-### Confirm persistent monitoring volume
-
-```bash
-docker volume ls | grep uptime-kuma
-docker inspect edunetguard-kuma --format '{{json .Mounts}}'
-```
+Restrict port 3001 to trusted internal administrators using your normal network/firewall controls.
