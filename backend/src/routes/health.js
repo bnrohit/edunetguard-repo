@@ -1,5 +1,6 @@
 const express = require('express');
 const axios = require('axios');
+const { version } = require('../../package.json');
 const router = express.Router();
 
 const MONITORING_URL = process.env.UPTIME_KUMA_URL || 'http://uptime-kuma:3001';
@@ -21,7 +22,7 @@ router.get('/', async (req, res) => {
     monitoring_engine: engine,
     monitoring_engine_error: engineError,
     timestamp: new Date().toISOString(),
-    version: '0.6.0',
+    version,
   });
 });
 
