@@ -36,6 +36,10 @@ function sanitizeMonitor(monitor) {
     type: monitor.type,
     target: monitor.target,
     port: monitor.port ?? null,
+    site: monitor.site || 'My Organization',
+    notes: monitor.notes || '',
+    deviceProfile: monitor.deviceProfile || null,
+    discovery: monitor.discovery || null,
     intervalSeconds: monitor.intervalSeconds,
     timeoutSeconds: monitor.timeoutSeconds,
     enabled: monitor.enabled !== false,
@@ -75,6 +79,10 @@ function createMonitor(owner, input) {
     type: input.type,
     target: input.target,
     port: input.port ?? null,
+    site: input.site || 'My Organization',
+    notes: input.notes || '',
+    deviceProfile: null,
+    discovery: null,
     intervalSeconds: input.intervalSeconds,
     timeoutSeconds: input.timeoutSeconds,
     enabled: true,
@@ -97,13 +105,26 @@ function updateMonitor(id, ownerId, changes, allowAdmin = false) {
   if (!monitor) return null;
   if (!allowAdmin && monitor.ownerId !== ownerId) return false;
 
-  for (const key of ['name', 'type', 'target', 'port', 'intervalSeconds', 'timeoutSeconds', 'enabled']) {
+  for (const key of ['name', 'type', 'target', 'port', 'site', 'notes', 'intervalSeconds', 'timeoutSeconds', 'enabled']) {
     if (Object.prototype.hasOwnProperty.call(changes, key)) monitor[key] = changes[key];
   }
 
   monitor.updatedAt = new Date().toISOString();
   monitor.nextCheckAt = monitor.enabled === false ? null : new Date().toISOString();
   if (monitor.enabled !== false && changes.enabled === true) monitor.status = 'pending';
+  writeStore(store);
+  return sanitizeMonitor(monitor);
+}
+
+function updateDiscovery(id, ownerId, discovery, deviceProfile, allowAdmin = false) {
+  const store = readStore();
+  const monitor = store.monitors.find((candidate) => candidate.id === id);
+  if (!monitor) return null;
+  if (!allowAdmin && monitor.ownerId !== ownerId) return false;
+
+  monitor.discovery = discovery || null;
+  monitor.deviceProfile = deviceProfile || null;
+  monitor.updatedAt = new Date().toISOString();
   writeStore(store);
   return sanitizeMonitor(monitor);
 }
@@ -166,6 +187,7 @@ module.exports = {
   findById,
   createMonitor,
   updateMonitor,
+  updateDiscovery,
   deleteMonitor,
   recordResult,
   dueMonitors,
