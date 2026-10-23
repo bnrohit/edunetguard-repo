@@ -1,6 +1,6 @@
 {
   "name": "edunetguard-backend",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Monitoring aggregation and invite-based user API for the EduNetGuard continuity console",
   "main": "src/index.js",
   "scripts": {
