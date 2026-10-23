@@ -3,6 +3,10 @@ const crypto = require('crypto');
 const COOKIE_NAME = 'edunetguard_session';
 const SESSION_SECONDS = Math.max(900, parseInt(process.env.SESSION_TTL_SECONDS || '43200', 10));
 
+function sessionConfigured() {
+  return (process.env.AUTH_SECRET || '').length >= 32;
+}
+
 function authSecret() {
   const secret = process.env.AUTH_SECRET || '';
   if (secret.length < 32) {
@@ -86,4 +90,5 @@ module.exports = {
   parseCookies,
   cookieHeader,
   clearCookieHeader,
+  sessionConfigured,
 };
