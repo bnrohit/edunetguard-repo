@@ -88,6 +88,16 @@ curl -fsS http://127.0.0.1:4000/health && echo
 docker compose logs --tail=80 backend
 ```
 
+For an approved private IP, run a complete one-host diagnosis from the container:
+
+```bash
+bash scripts/diagnose-device.sh 10.128.10.151
+```
+
+This prints CIDR validation, ICMP, Nmap open ports, SSH banner, web/TLS hints,
+classification and confidence. It does not scan any subnet. An unapproved
+target is rejected before sending probes.
+
 The sample ping is **only** a connectivity test from the container to a
 management address you own; replace `10.128.10.151` with your actual target.
 A failed ping does not necessarily mean the device is down (ICMP may be blocked).
