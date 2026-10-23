@@ -2,9 +2,9 @@
 
 **EduNetGuard** is an open-source K-12 network continuity and infrastructure visibility platform for school IT teams.
 
-It uses **Uptime Kuma** as the monitoring engine and adds a district-focused EduNetGuard operations layer for service health, response time, uptime, incidents, and grouped infrastructure visibility.
+EduNetGuard presents a district-focused operations console for service health, response time, uptime, incidents, and grouped infrastructure visibility. A separate monitoring engine runs internally and is not exposed as the user-facing product.
 
-> Status: **v0.2** — branded operations dashboard with live Uptime Kuma v2 status-page integration.
+> Status: **v0.3** — branded continuity console with hardened internal monitoring, live filtering, continuity insights, and operator-focused incident visibility.
 
 ---
 
@@ -23,22 +23,26 @@ EduNetGuard is designed to help school IT teams:
 
 ---
 
-## v0.2 features
+## v0.3 features
 
-- EduNetGuard-branded K-12 operations dashboard
-- Uptime Kuma v2 monitoring engine
-- Correct public status-page and heartbeat API integration
-- Current operational/degraded/down/maintenance states
-- 24-hour uptime summary
-- Response-time display when available
-- Active incident display from Uptime Kuma
+- EduNetGuard-branded continuity and network-operations dashboard
+- Monitoring engine hidden behind the EduNetGuard product surface
+- Monitoring admin bound to loopback by default instead of the LAN
+- Backend API bound to loopback while the frontend proxies API requests internally
+- Live operational/degraded/down/maintenance states
+- 24-hour uptime summary and response-time display
+- Continuity health score, average response time, slowest-service indicator, and telemetry freshness
+- Search by service/group/message
+- Status and operational-group filters with attention-first sorting
+- Live operations queue based only on actual current monitor state
+- Published incident banner when the monitoring engine provides one
 - Monitor grouping for Core, Network Services, Servers, Schools, Wireless, Learning, Facilities, and other categories
-- Node/Express read-only API layer
+- Node/Express read-only aggregation API
 - React/Tailwind frontend
 - Docker Compose deployment
-- Configurable district branding through `config/school.json`
+- GMCS/EduNetGuard branding through `config/school.json`
 - Demo-mode warning when live monitoring is unavailable
-- Upgrade and rollback documentation
+- Safer update script and upgrade/rollback documentation
 
 ---
 
@@ -55,13 +59,13 @@ EduNetGuard is designed to help school IT teams:
                          │
            Uptime Kuma public status API
                          │
-                  Uptime Kuma
-                    :3001
+          Internal Monitoring Engine
+               loopback :3001
                          │
         HTTP / Ping / TCP / DNS / other monitors
 ```
 
-EduNetGuard does **not** require the Uptime Kuma administrator password. It reads a published Uptime Kuma status page and its heartbeat data.
+EduNetGuard does **not** require an administrator password for its read-only monitoring feed. The native monitoring admin remains available only from the server loopback interface by default.
 
 ---
 
@@ -87,17 +91,17 @@ Open:
 
 ```text
 EduNetGuard Dashboard: http://localhost:3000
-Uptime Kuma Admin:     http://localhost:3001
+Monitoring Admin:      http://127.0.0.1:3001 (server-local / SSH tunnel)
 EduNetGuard API:       http://localhost:4000
 ```
 
 ---
 
-## Connect live Uptime Kuma monitoring
+## Connect the internal monitoring engine
 
-1. Open Uptime Kuma on port `3001` and create the administrator account if this is a new installation.
+1. On the server, open the monitoring admin on `127.0.0.1:3001` (or use the SSH tunnel documented below) and create the administrator account if this is a new installation.
 2. Add the monitors you want to track.
-3. Open **Status Pages**.
+3. Open the monitoring engine's **Status Pages**.
 4. Create a published status page with slug `edunetguard`.
 5. Add the monitors and organize them into groups.
 6. Confirm `.env` contains:
@@ -112,7 +116,7 @@ UPTIME_KUMA_STATUS_PAGE=edunetguard
 docker compose up -d backend
 ```
 
-EduNetGuard reads:
+EduNetGuard internally reads:
 
 ```text
 /api/status-page/edunetguard
@@ -126,6 +130,18 @@ For production, after live monitoring is working, use:
 ```env
 ALLOW_DEMO_FALLBACK=false
 ```
+
+---
+
+### Access the internal monitoring admin
+
+Production Compose binds the monitoring admin to server loopback only. From an authorized workstation:
+
+```bash
+ssh -L 3001:127.0.0.1:3001 rohith@<edunetguard-server>
+```
+
+Then open `http://127.0.0.1:3001` on that workstation. Closing the SSH session closes the tunnel.
 
 ---
 
@@ -179,9 +195,9 @@ See [`docs/MONITORING.md`](docs/MONITORING.md) for recommended K-12 monitors and
 
 ---
 
-## Upgrade from v0.1
+## Upgrade
 
-The Uptime Kuma persistent volume remains unchanged, so existing monitors can be preserved while the EduNetGuard frontend/backend are upgraded.
+The persistent monitoring-data volume remains unchanged, so existing monitors are preserved while the EduNetGuard frontend/backend are upgraded.
 
 Read the full procedure before upgrading:
 
@@ -224,9 +240,9 @@ Do **not** publish:
 
 For production:
 
-- Keep Uptime Kuma admin access restricted to authorized IT staff
+- Keep the native monitoring admin loopback-only and use SSH tunneling for authorized IT staff
 - Put externally reachable services behind HTTPS
-- Restrict ports `3001` and `4000` where direct access is unnecessary
+- Keep ports `3001` and `4000` bound to `127.0.0.1` unless there is a documented operational reason to expose them
 - Publish only monitor names appropriate for the dashboard audience
 - Set `ALLOW_DEMO_FALLBACK=false` after validating live monitoring
 
@@ -255,8 +271,8 @@ docker compose -f docker-compose.dev.yml up -d
 ```
 
 Frontend: `http://localhost:3000`  
-Backend: `http://localhost:4000`  
-Uptime Kuma: `http://localhost:3001`
+Backend: `http://127.0.0.1:4000`  
+Monitoring admin: `http://127.0.0.1:3001`
 
 ---
 
@@ -295,5 +311,5 @@ MIT License. See [`LICENSE`](LICENSE).
 
 ## Acknowledgments
 
-- [Uptime Kuma](https://github.com/louislam/uptime-kuma) for the monitoring engine
+- Uptime Kuma for the internal monitoring engine; its native UI is intentionally not the EduNetGuard user-facing experience
 - School IT teams maintaining critical educational infrastructure
