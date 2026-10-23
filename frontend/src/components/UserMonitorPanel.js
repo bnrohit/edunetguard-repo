@@ -263,6 +263,7 @@ function HistoryStrip({ history = [] }) {
 function DeviceDetail({ monitor, workingId, onAction, onEdit, onClose }) {
   const profile = monitor.deviceProfile;
   const discovery = monitor.discovery;
+  const topology = discovery?.topology;
   const guidance = monitor.guidance;
   const [copied, setCopied] = useState(false);
 
@@ -323,13 +324,15 @@ function DeviceDetail({ monitor, workingId, onAction, onEdit, onClose }) {
             </div>
           </section>
 
-          {monitor.enabled !== false && monitor.status === 'down' && guidance && (
-            <section className="rounded-2xl border border-red-200 bg-red-50 p-5">
+          {guidance && (
+            <section className={'rounded-2xl border p-5 ' +
+              (monitor.status === 'down' ? 'border-red-200 bg-red-50' : 'border-blue-100 bg-blue-50/50')}>
               <div className="flex items-start gap-3">
-                <AlertTriangle className="w-6 h-6 text-red-600 mt-0.5 flex-none" />
+                <AlertTriangle className={'w-6 h-6 mt-0.5 flex-none ' +
+                    (monitor.status === 'down' ? 'text-red-600' : 'text-blue-600')} />
                 <div className="min-w-0 flex-1">
-                  <h4 className="font-bold text-red-900">{guidance.headline}</h4>
-                  <p className="text-sm text-red-800 mt-1">Do these checks in order. Stop when you find the problem.</p>
+                  <h4 className="font-bold text-slate-900">{guidance.headline}</h4>
+                  <p className="text-sm text-slate-700 mt-1">Simple, device-specific checks. Read-only checks first; do not reboot or change ports until the impact is understood.</p>
                   <ol className="mt-4 space-y-2">
                     {(guidance.suggestions || []).map((item, index) => (
                       <li key={item} className="flex gap-3 text-sm text-slate-800">
@@ -340,6 +343,18 @@ function DeviceDetail({ monitor, workingId, onAction, onEdit, onClose }) {
                       </li>
                     ))}
                   </ol>
+                  {(guidance.readOnlyCommands || []).length > 0 && (
+                    <details className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
+                      <summary className="cursor-pointer text-sm font-bold text-slate-800">Read-only checks / commands</summary>
+                      <div className="mt-3 space-y-2">
+                        {(guidance.readOnlyCommands || []).map((item, index) => (
+                          <code key={index} className="block text-xs break-words text-slate-700 whitespace-pre-wrap">{item}</code>
+                        ))}
+                      </div>
+                      <p className="mt-2 text-xs text-slate-500">Examples depend on platform. Replace placeholders; run only on equipment you administer.</p>
+                    </details>
+                  )}
+                  <p className="mt-3 text-xs text-slate-600">To report the issue: note the device IP, site, last check, and any independently confirmed switch port / VLAN.</p>
                 </div>
               </div>
             </section>
@@ -364,10 +379,43 @@ function DeviceDetail({ monitor, workingId, onAction, onEdit, onClose }) {
           )}
 
           <section className="rounded-2xl border border-slate-200 p-5">
+            <div className="flex flex-wrap justify-between items-start gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.12em] text-slate-400 font-bold">Where is this connected?</p>
+                <p className="font-semibold text-slate-900 mt-1">Switch / port lookup</p>
+              </div>
+              <button
+                onClick={() => onAction(monitor.id, 'trace')}
+                disabled={workingId === monitor.id || !discovery?.resolvedIp}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-indigo-200 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-40">
+                <RefreshCw className={'w-4 h-4 ' + (workingId === monitor.id ? 'animate-spin' : '')} />
+                Find Switch Port
+              </button>
+            </div>
+            {topology?.status === 'candidates' && (topology.matches || []).length ? (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs text-slate-600">MAC: {topology.mac || 'unknown'} · ARP source: {topology.arpGateway || 'unknown'}</p>
+                {(topology.matches || []).map((match, index) => (
+                  <div key={index} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                    <p className="font-semibold text-slate-900 text-sm">{match.switchIp} / {match.port}</p>
+                    <p className="text-xs text-amber-800">Candidate learned port · {match.source} · not yet verified</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-slate-600">{topology?.note || 'Not known yet. Requires administrator-configured read-only SNMPv3 access to the gateway ARP and switch MAC tables.'}</p>
+            )}
+            {topology?.status === 'candidates' && <p className="mt-2 text-xs text-amber-800">{topology.note}</p>}
+            <p className="text-xs text-slate-500 mt-2">Ping and Nmap cannot determine a physical switch port. A learned MAC may be on an uplink: confirm CDP/LLDP and VLAN before taking action.</p>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 p-5">
             <p className="text-xs uppercase tracking-[0.12em] text-slate-400 font-bold">Discovery facts</p>
             <div className="mt-2 text-xs text-slate-600 space-y-1">
               <p>ICMP: {discovery?.icmpReachable == null ? 'Not measured / unknown' : discovery.icmpReachable ? 'Reply received' : 'No response (ICMP may be blocked)'}</p>
               {discovery?.sshBanner && <p className="break-all">SSH banner: {discovery.sshBanner}</p>}
+              {discovery?.snmp?.sysDescr && <p className="break-words">SNMPv3 device description: {discovery.snmp.sysDescr}</p>}
+              {discovery?.snmp?.sysName && <p>SNMPv3 hostname: {discovery.snmp.sysName}</p>}
               {profile?.evidence?.map((reason, index) => <p key={index}>Classification: {reason}</p>)}
               {discovery?.nmapNote && <p className="text-amber-700">Nmap: {discovery.nmapNote}</p>}
               {discovery?.discoveredAt && <p>Identified: {new Date(discovery.discoveredAt).toLocaleString()}</p>}
@@ -574,6 +622,10 @@ function UserMonitorPanel() {
         await axios.post(API_BASE + '/user-monitors/' + id + '/check', {}, { withCredentials: true, timeout: 15000 });
       } else if (action === 'discover') {
         await axios.post(API_BASE + '/user-monitors/' + id + '/discover', {}, { withCredentials: true, timeout: 30000 });
+      } else if (action === 'trace') {
+        await axios.post(API_BASE + '/user-monitors/' + id + '/trace-port', {}, {
+          withCredentials: true, timeout: 60000,
+        });
       } else if (action === 'toggle') {
         const current = monitors.find((item) => item.id === id);
         await axios.patch(API_BASE + '/user-monitors/' + id, { enabled: current?.enabled === false }, { withCredentials: true, timeout: 10000 });

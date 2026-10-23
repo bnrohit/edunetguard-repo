@@ -3,6 +3,8 @@ function evidenceText(monitor, discovery) {
     monitor?.name, monitor?.target,
     ...(discovery?.reverseDns || []),
     discovery?.sshBanner,
+    discovery?.snmp?.sysDescr,
+    discovery?.snmp?.sysName,
     ...(discovery?.openPorts || []).flatMap((item) => [item.service, item.product]),
     ...(discovery?.web || []).flatMap((item) => [
       item.title, item.server, item.poweredBy,
@@ -21,6 +23,8 @@ function classifyDevice(monitor, discovery) {
   const dnsText = (discovery?.reverseDns || []).join(' ').toLowerCase();
   const observed = [
     discovery?.sshBanner,
+    discovery?.snmp?.sysDescr,
+    discovery?.snmp?.sysName,
     ...(discovery?.openPorts || []).flatMap((p) => [p.product, p.service]),
     ...(discovery?.web || []).flatMap((w) => [w.title, w.server, w.poweredBy, w.certificate?.subject]),
   ].filter(Boolean).join(' ').toLowerCase();
@@ -28,7 +32,8 @@ function classifyDevice(monitor, discovery) {
   const ports = new Set((discovery?.openPorts || []).map((p) => p.port));
   const matches = (re) => re.test(observed);
   const named = (re) => re.test(nameText + ' ' + dnsText);
-  const model = detectedProduct(discovery);
+  const observedModel = /(C9\d{3}[A-Z0-9-]*|N9K-[A-Z0-9-]+|X450G2|X460G2|MS(?:225|250|350|355)[A-Z0-9-]*)/i.exec(discovery?.snmp?.sysDescr || '');
+  const model = observedModel ? observedModel[1].toUpperCase() : detectedProduct(discovery);
   const result = (type, label, vendor, confidence, why) => ({
     type, label, vendor, model, confidence, evidence: why,
   });
@@ -45,15 +50,17 @@ function classifyDevice(monitor, discovery) {
   // Network hardware requires special treatment: SSH alone does not imply Linux.
   const switchSignature = /cisco.*(catalyst|nx-?os|nexus)|\bcatalyst\b|\bnexus\b|extreme(?:xos| networks)?|\bexos\b|meraki\s+ms\d+|aruba.*switch|procurve|juniper.*ex\d{3,4}/i;
   const switchName = /\b(?:switch|sw(?:itch)?[-_ ]?\d+|catalyst|nexus|c9\d{3}|ms2\d{2}|ms3\d{2}|x450|x460)\b/i;
-  if (switchSignature.test(observed) || named(switchName)) {
+  if (switchSignature.test(observed) || named(switchName) || discovery?.snmp?.role === 'switch') {
     const vendor = matches(/cisco|catalyst|nexus|nx-?os/) ? 'Cisco'
       : matches(/meraki/) ? 'Cisco Meraki'
       : matches(/extreme|exos|xos/) ? 'Extreme Networks'
       : matches(/aruba|procurve/) ? 'Aruba/HPE'
       : matches(/juniper/) ? 'Juniper Networks' : null;
     return result('switch', 'Network Switch', vendor,
-      switchSignature.test(observed) ? 'high' : 'low',
-      [switchSignature.test(observed) ? 'Switch-specific service/management signature' : 'Switch suggested by hostname or label; verification recommended']);
+      switchSignature.test(observed) ? 'high' : discovery?.snmp?.role === 'switch' ? 'medium' : 'low',
+      [switchSignature.test(observed) ? 'Switch-specific service/management signature' :
+        discovery?.snmp?.role === 'switch' ? 'Admin-enrolled switch with read-only SNMP identity' :
+          'Switch suggested by hostname or label; verification recommended']);
   }
   if (matches(/meraki.*\bmr\d+|wireless access point|ubiquiti.*\bunifi\b/) || named(/\b(?:wap|wireless ap|access point|mr\d{2,3})\b/)) {
     return result('access-point', 'Wireless Access Point', matches(/meraki/) ? 'Cisco Meraki' : null,
@@ -235,18 +242,94 @@ const PLAYBOOKS = {
   },
 };
 
+const READ_ONLY_COMMANDS = Object.freeze({
+  switch: [
+    'Cisco IOS/NX-OS: show interfaces status',
+    'Cisco: show cdp neighbors detail; show lldp neighbors detail',
+    'Cisco: show mac address-table address <endpoint-mac>',
+    'ExtremeXOS: show ports information; show fdb <endpoint-mac>',
+  ],
+  router: [
+    'Cisco: show ip route; show ip ospf neighbor',
+    'VyOS: show interfaces; show ip route; show ip ospf neighbor',
+  ],
+  'access-point': [
+    'On its upstream switch: show interfaces status',
+    'On its upstream switch: show power inline; show lldp neighbors detail',
+  ],
+  camera: [
+    'On its upstream switch: show power inline',
+    'On its upstream switch: show mac address-table address <camera-mac>',
+  ],
+  'dell-server': [
+    'On the access switch: show interfaces status',
+    'On the access switch: show mac address-table address <server-mac>',
+  ],
+  esxi: [
+    'ESXi Shell: esxcli network nic list',
+    'ESXi Shell: esxcli storage core path list',
+  ],
+  'windows-server': [
+    'PowerShell: Test-Connection <server-ip> -Count 2',
+    'PowerShell: Get-NetAdapter; Get-Service',
+  ],
+  'linux-server': [
+    'Linux: ip -br address; ip route',
+    'Linux: systemctl --failed; journalctl -p warning -n 30',
+  ],
+  'dns-server': [
+    'Linux: dig @<dns-ip> example.org',
+    'Windows: Resolve-DnsName example.org -Server <dns-ip>',
+  ],
+  printer: [
+    'On the switch: show interfaces status',
+    'On the switch: show mac address-table address <printer-mac>',
+  ],
+  firewall: ['Review read-only HA, session, routing, and interface status in the vendor console.'],
+  vcenter: ['In vCenter: check Hosts and Clusters, alarms, and datastore status.'],
+  website: ['Linux: curl -I --max-time 5 https://<website-host>'],
+});
 function guidanceFor(profile, monitor) {
   const playbook = PLAYBOOKS[profile?.type] || PLAYBOOKS['generic-device'];
   const status = monitor?.status || 'pending';
+  const last = String(monitor?.lastResult?.message || '');
+  const topology = monitor?.discovery?.topology;
+  const hints = [];
+  if (topology?.status === 'candidates' && topology.matches?.length) {
+    const first = topology.matches[0];
+    hints.push('Possible learned port: ' + first.switchIp + ' / ' + first.port +
+      '. Confirm this is an access port, not an uplink, before taking action.');
+  }
+  if (status === 'down' && /timed out|No ICMP|unreachable|EHOST|ENET/i.test(last)) {
+    hints.push('No network response: check power, the gateway and switch uplink before restarting any service.');
+  } else if (status === 'down' && /refused|HTTP 5\d\d|TCP/i.test(last)) {
+    hints.push('The host may be reachable but the service is failing: check its application and management logs.');
+  }
+  if (monitor?.discovery?.nmapNote) {
+    hints.push('Service identification had a limitation: ' + String(monitor.discovery.nmapNote).slice(0, 120));
+  }
+  const portLocation = topology?.status === 'candidates'
+    ? 'Candidate FDB location; verify against current MAC/LLDP/CDP data.'
+    : topology?.note || 'Switch port not yet identified. Use Find Switch Port after read-only SNMPv3 is configured.';
+  const suggestions = [...hints, ...playbook.suggestions].slice(0, 5);
   return {
     state: status === 'down' ? 'action-required' : status === 'up' ? 'healthy' : 'checking',
     headline: status === 'down'
       ? profile.label + ' needs attention'
       : status === 'up'
-        ? profile.label + ' is responding'
-        : 'Checking ' + profile.label,
-    suggestions: playbook.suggestions.slice(0, 4),
-    adminMessage: playbook.report,
+        ? profile.label + ' is responding — troubleshooting reference'
+        : 'How to troubleshoot ' + profile.label,
+    suggestions,
+    readOnlyCommands: READ_ONLY_COMMANDS[profile?.type] || [
+      'Check the device management interface and upstream switch MAC table (read-only).',
+    ],
+    collect: ['Device IP and site', 'Last result / time', 'Detected ports and device evidence',
+      'Switch MAC / port and VLAN (when independently confirmed)'],
+    portLocation,
+    adminMessage: status === 'down'
+      ? playbook.report + (topology?.status === 'candidates' ?
+        ' Possible learned switch port: ' + topology.matches[0].switchIp + ' / ' + topology.matches[0].port + ' (not verified).' : '')
+      : profile.label + ' responds. Use the read-only checks if users report a partial outage.',
   };
 }
 
