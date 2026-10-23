@@ -61,5 +61,11 @@
     "scheme": "http",
     "host": null,
     "port": 3001
+  },
+  "accounts": {
+    "enabled": true,
+    "registration": "invite-only",
+    "personalDashboards": true,
+    "adminRole": true
   }
 }
