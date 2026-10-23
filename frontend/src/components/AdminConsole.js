@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import JoinCodePanel from './JoinCodePanel';
 import {
   Activity,
   ArrowLeft,
@@ -209,12 +210,14 @@ function AdminConsole({
         </div>
       </section>
 
+      <JoinCodePanel />
+
       <section className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
           <Users className="w-5 h-5 text-slate-500" />
           <div>
             <h3 className="font-bold text-slate-950">EduNetGuard Accounts</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Join codes are configured on the server and are never displayed here.</p>
+            <p className="text-xs text-slate-500 mt-0.5">Normal-user join codes are revealed only after admin password verification. Administrator-registration codes remain hidden.</p>
           </div>
         </div>
 
