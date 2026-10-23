@@ -76,14 +76,16 @@ function snmp(command, host, oid) {
   });
 }
 async function readMac(ip, gateways) {
-  for (const gateway of gateways) {
+  const found = await Promise.all(gateways.map(async gateway => {
     for (const oid of [OIDS.physical, OIDS.arp]) {
       const rows = parseRows(await snmp('snmpbulkwalk', gateway, oid));
-      const record = rows.find(row => row.oid.startsWith(oid + '.') && row.oid.endsWith('.' + ip) && macFromValue(row.value));
+      const record = rows.find(row => row.oid.startsWith(oid + '.') &&
+        row.oid.endsWith('.' + ip) && macFromValue(row.value));
       if (record) return { mac: macFromValue(record.value), gateway };
     }
-  }
-  return null;
+    return null;
+  }));
+  return found.find(Boolean) || null;
 }
 async function candidateOnSwitch(address, mac) {
   const macSuffix = mac.split(':').map(part => parseInt(part, 16)).join('.');
