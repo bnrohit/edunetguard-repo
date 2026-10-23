@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { enrichService } = require('../services/network-advisor');
 
 const DATA_DIR = process.env.USER_DATA_DIR || '/app/user-data';
 const FILE = path.join(DATA_DIR, 'user-monitors.json');
@@ -28,7 +29,7 @@ function writeStore(store) {
 }
 
 function sanitizeMonitor(monitor) {
-  return {
+  return enrichService({
     id: monitor.id,
     ownerId: monitor.ownerId,
     ownerUsername: monitor.ownerUsername,
@@ -46,7 +47,7 @@ function sanitizeMonitor(monitor) {
     status: monitor.status || 'pending',
     lastResult: monitor.lastResult || null,
     history: Array.isArray(monitor.history) ? monitor.history : [],
-  };
+  });
 }
 
 function listByOwner(ownerId) {
