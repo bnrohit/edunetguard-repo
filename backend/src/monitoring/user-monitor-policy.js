@@ -48,6 +48,16 @@ function allowedPrivateIpv4(ip) {
   return ALLOWED_CIDRS.some((cidr) => ipv4InCidr(ip, cidr));
 }
 
+function isPrivateAddress(address) {
+  const family = net.isIP(address);
+  if (family === 4) return isPrivateIpv4(address);
+  if (family === 6) {
+    const value = address.toLowerCase();
+    return value.startsWith('fc') || value.startsWith('fd') || value.startsWith('fe80:') || value === '::1';
+  }
+  return false;
+}
+
 function isBlockedIpv6(ip) {
   const value = ip.toLowerCase();
   return value === '::' ||
@@ -193,4 +203,5 @@ module.exports = {
   validateTarget,
   resolveAllowedTarget,
   policySummary,
+  isPrivateAddress,
 };
