@@ -320,7 +320,7 @@ function DeviceDetail({ monitor, workingId, onAction, onEdit, onClose }) {
             </div>
           </section>
 
-          {monitor.status === 'down' && guidance && (
+          {monitor.enabled !== false && monitor.status === 'down' && guidance && (
             <section className="rounded-2xl border border-red-200 bg-red-50 p-5">
               <div className="flex items-start gap-3">
                 <AlertTriangle className="w-6 h-6 text-red-600 mt-0.5 flex-none" />
@@ -342,7 +342,7 @@ function DeviceDetail({ monitor, workingId, onAction, onEdit, onClose }) {
             </section>
           )}
 
-          {guidance?.adminMessage && (
+          {monitor.enabled !== false && monitor.status === 'down' && guidance?.adminMessage && (
             <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                 <div>
