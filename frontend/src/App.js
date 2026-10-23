@@ -1,10 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import {
-  Wifi,
-  Server,
-  BookOpen,
-  Building,
   CheckCircle,
   XCircle,
   AlertCircle,
@@ -19,7 +15,7 @@ import {
   LockKeyhole,
 } from 'lucide-react';
 import StatusHeader from './components/StatusHeader';
-import ServiceGroup from './components/ServiceGroup';
+import ServiceCubeOverview from './components/ServiceCubeOverview';
 import IncidentHistory from './components/IncidentHistory';
 import ContinuityInsights from './components/ContinuityInsights';
 import Footer from './components/Footer';
@@ -38,13 +34,6 @@ function pathView() {
   return 'dashboard';
 }
 
-function groupIcon(name) {
-  const key = String(name || '').toLowerCase();
-  if (key.includes('wireless') || key.includes('network') || key.includes('internet')) return Wifi;
-  if (key.includes('learning')) return BookOpen;
-  if (key.includes('site') || key.includes('facility') || key.includes('school')) return Building;
-  return Server;
-}
 
 function MetricCard({ label, value, helper, icon: Icon, tone = 'slate' }) {
   const tones = {
@@ -493,9 +482,7 @@ function App() {
           </div>
 
           <div className="space-y-5">
-            {Object.entries(groupedServices).map(([groupName, groupServices]) => (
-              <ServiceGroup key={groupName} name={groupName} services={groupServices} icon={groupIcon(groupName)} />
-            ))}
+            {filteredServices.length > 0 && <ServiceCubeOverview groupedServices={groupedServices} />}
 
             {liveConnected && filteredServices.length === 0 && services.length > 0 && (
               <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center shadow-sm">
