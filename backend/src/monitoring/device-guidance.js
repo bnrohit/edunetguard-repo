@@ -45,10 +45,10 @@ function classifyDevice(monitor, discovery) {
   if (match(/extreme|exos|xos/) && ports.has(22)) {
     return { type: 'switch', label: 'Network Switch', vendor: 'Extreme Networks', model: detectedProduct(discovery), confidence: 'high' };
   }
-  if (match(/meraki.*\\bms\\d*/)) {
+  if (match(/meraki.*\bms\d*/)) {
     return { type: 'switch', label: 'Meraki Switch', vendor: 'Cisco Meraki', model: detectedProduct(discovery), confidence: 'high' };
   }
-  if (match(/meraki.*\\bmr\\d*|wireless access point|\bwap\b|\bap\d*\b/)) {
+  if (match(/meraki.*\bmr\d*|wireless access point|\bwap\b|\bap\d*\b/)) {
     return { type: 'access-point', label: 'Wireless Access Point', vendor: match(/meraki/) ? 'Cisco Meraki' : null, model: detectedProduct(discovery), confidence: 'medium' };
   }
   if (match(/vyos|routeros|mikrotik|\brouter\b|\brtr\b/)) {
