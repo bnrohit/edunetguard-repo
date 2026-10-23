@@ -1,13 +1,13 @@
-# EduNetGuard v0.5 Upgrade Guide
+# EduNetGuard v0.6 Upgrade Guide
 
-v0.5 adds user-owned monitoring directly to **My Dashboard** while preserving the existing central Uptime Kuma monitoring engine.
+v0.6 adds smart status cubes, automatic device identification, and device-specific troubleshooting guidance.
 
 ## Data preserved
 
-The existing persistent volumes remain in use:
+The existing persistent volumes remain unchanged:
 
-- `uptime-kuma-data` — centrally managed monitoring configuration and history
-- `edunetguard-user-data` — accounts, encrypted user join code, personal dashboard preferences, personal monitors, and their recent history
+- `uptime-kuma-data` — district monitoring configuration/history
+- `edunetguard-user-data` — accounts, join-code state, personal monitors, discovery metadata, and monitor history
 
 Never run:
 
@@ -15,7 +15,7 @@ Never run:
 docker compose down -v
 ```
 
-## 1. Update the repository
+## 1. Update
 
 ```bash
 cd ~/edunetguard-repo
@@ -24,45 +24,30 @@ git fetch origin
 git pull --ff-only origin main
 ```
 
-Expected version:
+Expected frontend/backend version: `0.6.0`.
 
-```text
-0.5.0
+## 2. Configure discovery
+
+Keep your existing personal-monitor policy and add:
+
+```env
+USER_MONITOR_AUTO_DISCOVERY=true
+USER_MONITOR_DISCOVERY_TIMEOUT_SECONDS=20
 ```
 
-## 2. Configure personal-monitor policy
+Private targets are fingerprinted only when they are already allowed by:
 
-Public websites are allowed by default. Private/internal IPs are blocked unless explicitly approved.
-
-For a deployment with internal monitoring, add only the networks normal users should be able to monitor. Example:
-
-```bash
-set_env() {
-  KEY="$1"
-  VALUE="$2"
-  grep -q "^$KEY=" .env \
-    && sed -i "s|^$KEY=.*|$KEY=$VALUE|" .env \
-    || echo "$KEY=$VALUE" >> .env
-}
-
-set_env USER_MONITOR_MAX_PER_USER "20"
-set_env USER_MONITOR_MIN_INTERVAL_SECONDS "30"
-set_env USER_MONITOR_MAX_INTERVAL_SECONDS "86400"
-set_env USER_MONITOR_HISTORY_LIMIT "120"
-set_env USER_MONITOR_ALLOW_PUBLIC_TARGETS "true"
-
-# EXAMPLE ONLY — replace with the approved internal ranges for your environment.
-set_env USER_MONITOR_ALLOWED_CIDRS "10.128.0.0/16,10.250.0.0/16"
+```env
+USER_MONITOR_ALLOWED_CIDRS=10.128.0.0/16,10.250.0.0/16
 ```
 
-Do not automatically use `10.0.0.0/8` unless every authenticated user is authorized to monitor every private target in that range.
+Use only the internal ranges that your authenticated EduNetGuard users are authorized to monitor.
 
 ## 3. Build and apply
 
 ```bash
 docker compose config >/dev/null && echo "Compose OK"
 
-docker compose pull uptime-kuma
 docker compose build --pull frontend backend
 docker compose up -d
 
@@ -70,7 +55,7 @@ sleep 15
 docker compose ps
 ```
 
-The backend image now includes the ICMP ping utility needed for personal Ping/IP monitors.
+The backend image now contains both `ping` and `nmap`.
 
 ## 4. Verify
 
@@ -80,73 +65,38 @@ grep '"version"' frontend/package.json | head -1
 grep '"version"' backend/package.json | head -1
 
 echo
-echo "===== API HEALTH ====="
+echo "===== HEALTH ====="
 curl -fsS http://127.0.0.1:4000/health
 echo
+
+echo
+echo "===== DISCOVERY TOOLS ====="
+docker exec edunetguard-backend nmap --version | head -3
+docker exec edunetguard-backend ping -V | head -1 || true
 
 echo
 echo "===== CONTAINERS ====="
 docker compose ps
 
 echo
-echo "===== PERSISTENT USER DATA ====="
-docker volume ls | grep edunetguard-user
-
-echo
-echo "===== NGINX ====="
-docker exec edunetguard-frontend nginx -v
-
-echo
 echo "===== MDNS ====="
 sudo ss -lunp | grep ':5353' || echo "PASS - UDP/5353 closed"
 ```
 
-Expected EduNetGuard API version: `0.5.0`.
+## 5. Existing user monitors
 
-## 5. User workflow
-
-A signed-in user opens:
+Existing v0.5 monitors remain valid. They will show under the default site:
 
 ```text
-http://<server>:3000/me
+My Organization
 ```
 
-Then:
+Open a monitor and select **Identify Again** to populate its device profile.
 
-1. Select **Add Monitor**.
-2. Choose Website, Ping/IP, TCP Port, or DNS.
-3. Enter a friendly name and target.
-4. Choose interval and timeout.
-5. Save.
+You may edit the monitor and assign a more useful site/organization name such as `SSC`, `GPHS`, `NOC`, or `District Websites`.
 
-EduNetGuard validates the target against the server-side policy and immediately runs the first check.
+## 6. New monitor workflow
 
-The user can subsequently:
+New monitors automatically schedule device identification after their first health check.
 
-- Check Now
-- Edit
-- Pause
-- Resume
-- Delete
-- View recent up/down history
-
-## 6. Admin workflow
-
-An administrator opens:
-
-```text
-http://<server>:3000/admin
-```
-
-The **User-Owned Monitors** section shows monitors grouped by owner. Admins can pause/resume or delete any user-created monitor.
-
-## Security behavior
-
-- Monitor ownership is enforced server-side.
-- Users cannot modify another user's monitor by changing browser requests.
-- The default quota is 20 monitors/user.
-- Minimum default interval is 30 seconds.
-- Manual checks are rate-limited.
-- HTTP redirects are disabled for personal monitors.
-- Targets are DNS-resolved and checked against the target policy before connection.
-- Loopback, link-local, multicast and unapproved private addresses are rejected.
+Private approved targets may receive the small single-host Nmap service fingerprint documented in `docs/SMART_OPERATIONS.md`. Public targets receive DNS/HTTP/TLS discovery only.
