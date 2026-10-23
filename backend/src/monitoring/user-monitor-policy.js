@@ -7,6 +7,7 @@ const MAX_INTERVAL = Math.max(MIN_INTERVAL, parseInt(process.env.USER_MONITOR_MA
 const DEFAULT_TIMEOUT = Math.max(2, parseInt(process.env.USER_MONITOR_DEFAULT_TIMEOUT_SECONDS || '10', 10));
 const MAX_TIMEOUT = Math.max(DEFAULT_TIMEOUT, parseInt(process.env.USER_MONITOR_MAX_TIMEOUT_SECONDS || '30', 10));
 const ALLOW_PUBLIC = process.env.USER_MONITOR_ALLOW_PUBLIC_TARGETS !== 'false';
+const AUTO_DISCOVERY = process.env.USER_MONITOR_AUTO_DISCOVERY !== 'false';
 
 const ALLOWED_CIDRS = String(process.env.USER_MONITOR_ALLOWED_CIDRS || '')
   .split(',')
@@ -204,6 +205,7 @@ function policySummary() {
     maxTimeoutSeconds: MAX_TIMEOUT,
     publicTargetsAllowed: ALLOW_PUBLIC,
     allowedPrivateCidrs: ALLOWED_CIDRS,
+    autoDiscoveryEnabled: AUTO_DISCOVERY,
   };
 }
 
