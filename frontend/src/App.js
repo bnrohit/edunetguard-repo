@@ -28,6 +28,7 @@ import ErrorState from './components/ErrorState';
 import AdminConsole from './components/AdminConsole';
 import AuthDialog from './components/AuthDialog';
 import MyDashboard from './components/MyDashboard';
+import OperationsOverview from './components/OperationsOverview';
 
 const API_BASE = process.env.REACT_APP_API_URL || '/api';
 const REFRESH_INTERVAL = parseInt(process.env.REACT_APP_REFRESH_INTERVAL, 10) || 30000;
@@ -432,7 +433,13 @@ function App() {
           </section>
         )}
 
-        <section>
+        <OperationsOverview services={services} />
+
+        <details className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <summary className="cursor-pointer px-5 sm:px-6 py-4 font-semibold text-slate-800 hover:bg-slate-50">
+            Detailed monitor list and filters
+          </summary>
+          <div className="p-5 sm:p-6 border-t border-slate-100">
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-4">
             <div>
               <p className="text-sm font-semibold text-primary uppercase tracking-[0.08em]">Infrastructure Health</p>
@@ -515,7 +522,9 @@ function App() {
               </div>
             )}
           </div>
-        </section>
+          </div>
+        </details>
+
 
         {config?.display?.showIncidentHistory && liveConnected && <IncidentHistory services={services} />}
       </main>
