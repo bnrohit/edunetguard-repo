@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, CheckCircle, Heart, Star, TriangleAlert } from 'lucide-react';
+import { Activity, CheckCircle, Heart, Star, AlertTriangle } from 'lucide-react';
 
 function StatusPill({ status }) {
   const style = {
@@ -54,7 +54,7 @@ function MyDashboard({ user, services = [], onToggleFavorite, saving }) {
           <p className="text-sm text-slate-500">Pinned services healthy</p>
         </div>
         <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
-          <TriangleAlert className="w-5 h-5 text-amber-600" />
+          <AlertTriangle className="w-5 h-5 text-amber-600" />
           <p className="text-3xl font-bold text-slate-950 mt-3">{problemServices.length}</p>
           <p className="text-sm text-slate-500">Pinned services needing attention</p>
         </div>
