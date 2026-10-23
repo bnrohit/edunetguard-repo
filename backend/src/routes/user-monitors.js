@@ -9,11 +9,13 @@ const store = require('../monitoring/user-monitor-store');
 const runner = require('../monitoring/user-monitor-runner');
 const { discoverMonitor } = require('../monitoring/device-discovery');
 const { classifyDevice } = require('../monitoring/device-guidance');
+const { traceSwitchPort } = require('../monitoring/switch-port-trace');
 const {
   MAX_PER_USER,
   normalizeInput,
   validateTarget,
   policySummary,
+  resolveAllowedTarget,
 } = require('../monitoring/user-monitor-policy');
 
 const policyLimiter = rateLimit({
@@ -30,6 +32,14 @@ const discoveryLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many discovery requests. Try again later.' },
+});
+
+const portTraceLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Switch-port lookup limit reached. Try again later.' },
 });
 
 const manualCheckLimiter = rateLimit({
@@ -209,6 +219,39 @@ router.delete('/:id', requireAuth, (req, res) => {
   const denied = notFoundOrDenied(removed, res);
   if (denied) return denied;
   return res.json({ removed: true, monitor: removed });
+});
+
+// Read-only SNMPv3 topology lookup on already-monitored, authorized single IPv4 hosts.
+// The administrator controls the gateway/switch inventory through environment settings.
+router.post('/:id/trace-port', portTraceLimiter, requireAuth, async (req, res) => {
+  try {
+    const current = store.findById(req.params.id);
+    if (!current) return res.status(404).json({ error: 'Monitor not found.' });
+    if (current.ownerId !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'You do not own this monitor.' });
+    }
+    if (!current.discovery?.resolvedIp) {
+      return res.status(409).json({ error: 'Identify the device first, then find its candidate switch port.' });
+    }
+    const name = current.type === 'http' ? new URL(current.target).hostname : current.target;
+    const resolved = await resolveAllowedTarget(name);
+    if (resolved.family !== 4 || resolved.address !== current.discovery.resolvedIp) {
+      return res.status(409).json({ error: 'Device IP changed. Click Identify Again before tracing the port.' });
+    }
+    const topology = await traceSwitchPort(resolved.address);
+    const now = store.findById(current.id);
+    if (!now || now.target !== current.target || now.type !== current.type || now.discovery?.resolvedIp !== resolved.address) {
+      return res.status(409).json({ error: 'Device changed during lookup. Try again.' });
+    }
+    const updated = store.updateDiscovery(current.id, current.ownerId,
+      { ...now.discovery, topology }, now.deviceProfile, req.user.role === 'admin');
+    if (!updated) return res.status(404).json({ error: 'Monitor no longer available.' });
+    return res.json({ monitor: updated });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      error: error.statusCode ? error.message : 'Switch-port lookup failed. Check backend logs and SNMPv3 configuration.',
+    });
+  }
 });
 
 router.post('/:id/discover', discoveryLimiter, requireAuth, async (req, res) => {
