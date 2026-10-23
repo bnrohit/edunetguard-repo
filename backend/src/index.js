@@ -11,6 +11,8 @@ const configRoutes = require('./routes/config');
 const sitesRoutes = require('./routes/sites');
 const dhcpRoutes = require('./routes/dhcp');
 const { router: authRoutes } = require('./routes/auth');
+const userMonitorRoutes = require('./routes/user-monitors');
+const { startScheduler } = require('./monitoring/user-monitor-runner');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -31,7 +33,7 @@ app.use(helmet({
 
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost'],
-  methods: ['GET', 'POST', 'PATCH'],
+  methods: ['GET', 'POST', 'PATCH', 'DELETE'],
 }));
 
 app.use(compression());
@@ -55,11 +57,12 @@ app.use('/config', configRoutes);
 app.use('/sites', sitesRoutes);
 app.use('/dhcp', dhcpRoutes);
 app.use('/auth', authRoutes);
+app.use('/user-monitors', userMonitorRoutes);
 
 app.get('/', (req, res) => {
   res.json({
     name: 'EduNetGuard API',
-    version: '0.4.1',
+    version: '0.5.0',
     status: 'operational',
     monitoring: {
       engine: 'EduNetGuard Monitoring Engine',
@@ -72,6 +75,7 @@ app.get('/', (req, res) => {
       sites: '/sites',
       dhcp: '/dhcp',
       auth: '/auth',
+      userMonitors: '/user-monitors',
     },
   });
 });
@@ -85,7 +89,8 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`EduNetGuard API v0.4.1 running on port ${PORT}`);
+  startScheduler();
+  console.log(`EduNetGuard API v0.5.0 running on port ${PORT}`);
   console.log(`Cache TTL: ${CACHE_TTL}s`);
   console.log(`Monitoring status page: ${process.env.UPTIME_KUMA_STATUS_PAGE || 'edunetguard'}`);
 });
