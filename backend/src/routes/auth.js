@@ -19,6 +19,19 @@ const {
   clearCookieHeader,
   sessionConfigured,
 } = require('../auth/session');
+const {
+  getUserJoinCodeStatus,
+  revealUserJoinCode,
+  rotateUserJoinCode,
+} = require('../auth/join-code');
+
+const revealLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many sensitive admin requests. Try again later.' },
+});
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -106,6 +119,43 @@ router.patch('/preferences', requireAuth, (req, res) => {
   const user = updatePreferences(req.user.id, req.body || {});
   if (!user) return res.status(404).json({ error: 'User not found.' });
   return res.json({ user });
+});
+
+router.get('/admin/join-code/status', requireAdmin, (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json(getUserJoinCodeStatus());
+});
+
+router.post('/admin/join-code/reveal', revealLimiter, requireAdmin, (req, res) => {
+  const password = req.body?.password;
+  const verified = authenticate(req.user.username, password);
+
+  if (!verified || verified.role !== 'admin') {
+    return res.status(401).json({ error: 'Password verification failed.' });
+  }
+
+  const code = revealUserJoinCode();
+  if (!code) return res.status(404).json({ error: 'User join code is not configured.' });
+
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Pragma', 'no-cache');
+  console.info('User join code revealed after admin re-authentication:', req.user.username);
+  return res.json({ code, expires_in_seconds: 60 });
+});
+
+router.post('/admin/join-code/rotate', revealLimiter, requireAdmin, (req, res) => {
+  const password = req.body?.password;
+  const verified = authenticate(req.user.username, password);
+
+  if (!verified || verified.role !== 'admin') {
+    return res.status(401).json({ error: 'Password verification failed.' });
+  }
+
+  const rotated = rotateUserJoinCode();
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Pragma', 'no-cache');
+  console.info('User join code rotated after admin re-authentication:', req.user.username);
+  return res.json({ ...rotated, expires_in_seconds: 60 });
 });
 
 router.get('/users', requireAdmin, (req, res) => {
