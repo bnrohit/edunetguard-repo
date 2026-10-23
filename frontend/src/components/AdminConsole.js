@@ -9,7 +9,7 @@ import {
   Radio,
   Server,
   ShieldCheck,
-  TriangleAlert,
+  AlertTriangle,
   Wrench,
 } from 'lucide-react';
 
@@ -96,7 +96,7 @@ function AdminConsole({
           tone="blue"
         />
         <AdminMetric
-          icon={alerts ? TriangleAlert : CheckCircle}
+          icon={alerts ? AlertTriangle : CheckCircle}
           label="Needs Attention"
           value={alerts}
           helper={alerts ? 'Down or checking services' : 'No active service alerts'}
