@@ -59,7 +59,7 @@ app.use('/auth', authRoutes);
 app.get('/', (req, res) => {
   res.json({
     name: 'EduNetGuard API',
-    version: '0.4.0',
+    version: '0.4.1',
     status: 'operational',
     monitoring: {
       engine: 'EduNetGuard Monitoring Engine',
@@ -85,7 +85,7 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`EduNetGuard API v0.4.0 running on port ${PORT}`);
+  console.log(`EduNetGuard API v0.4.1 running on port ${PORT}`);
   console.log(`Cache TTL: ${CACHE_TTL}s`);
   console.log(`Monitoring status page: ${process.env.UPTIME_KUMA_STATUS_PAGE || 'edunetguard'}`);
 });
