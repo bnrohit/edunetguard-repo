@@ -112,6 +112,29 @@ async function candidateOnSwitch(address, mac) {
   }
   return [];
 }
+// Identify explicitly enrolled switches/gateways using their own read-only sysDescr.
+async function readSnmpIdentity(ip) {
+  if (net.isIP(ip) !== 4 || !isPrivateAddress(ip) || !configured()) return null;
+  const enrolled = [
+    ...targets('USER_MONITOR_TOPOLOGY_GATEWAYS', 4),
+    ...targets('USER_MONITOR_TOPOLOGY_SWITCHES', 12),
+  ];
+  if (!enrolled.includes(ip)) return null;
+  assertAddressAllowed(ip);
+  const [sysDescr, sysName] = await Promise.all([
+    snmp('snmpget', ip, '1.3.6.1.2.1.1.1.0'),
+    snmp('snmpget', ip, '1.3.6.1.2.1.1.5.0'),
+  ]);
+  const descriptions = parseRows(sysDescr);
+  const names = parseRows(sysName);
+  if (!descriptions.length || /No Such/i.test(descriptions[0].value)) return null;
+  return {
+    sysDescr: stringFromValue(descriptions[0].value).slice(0, 120),
+    sysName: names.length && !/No Such/i.test(names[0].value) ? stringFromValue(names[0].value) : null,
+    source: 'SNMPv3 sysDescr/sysName',
+  };
+}
+
 async function traceSwitchPort(ip) {
   if (!isPrivateAddress(ip) || net.isIP(ip) !== 4) return { status: 'unavailable', note: 'Switch-port lookup supports only approved private IPv4 addresses.' };
   assertAddressAllowed(ip);
@@ -141,4 +164,4 @@ async function traceSwitchPort(ip) {
       : 'MAC was found on the gateway, but no listed switch FDB contained it. Add the appropriate access switches or check SNMP/VLAN FDB visibility.',
   };
 }
-module.exports = { traceSwitchPort, parseRows, macFromValue, macFromOid, numberFromValue, configured };
+module.exports = { traceSwitchPort, readSnmpIdentity, parseRows, macFromValue, macFromOid, numberFromValue, configured };
