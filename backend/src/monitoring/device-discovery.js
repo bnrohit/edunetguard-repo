@@ -74,6 +74,17 @@ async function icmpReachability(address) {
     child.once('close', (code) => finish(code === 0));
   });
 }
+function nmapErrorMessage(stderr, exitCode) {
+  const raw = String(stderr || '').trim();
+  if (/could not locate nse_main\\.lua|failed to initialize the script engine/i.test(raw)) {
+    return 'Nmap service discovery unavailable: NSE runtime missing. Rebuild the backend with nmap-nselibs and nmap-scripts.';
+  }
+  if (/permission denied|operation not permitted/i.test(raw)) {
+    return 'Nmap service discovery was denied permission: check backend container privileges and connectivity.';
+  }
+  return (raw ? raw.slice(0, 500) : 'Nmap exited with code ' + exitCode);
+}
+
 function nmapFingerprint(address) {
   assertAddressAllowed(address);
   if (!isPrivateAddress(address)) {
@@ -104,7 +115,7 @@ function nmapFingerprint(address) {
     child.once('error', (error) => finish({ skipped: true, reason: error.message, ports: [] }));
     child.once('close', (code) => finish({
       skipped: code !== 0 && !parseNmapXml(stdout).length,
-      reason: code === 0 ? null : (stderr.trim() || 'Nmap could not finish; try Identify Again.'),
+      reason: code === 0 ? null : nmapErrorMessage(stderr, code),
       ports: parseNmapXml(stdout),
     }));
     const timer = setTimeout(() => {
@@ -215,4 +226,4 @@ async function discoverMonitor(monitor) {
     web: httpHints, discoveredAt: new Date().toISOString(),
   };
 }
-module.exports = { discoverMonitor, parseGreppable, parseNmapXml };
+module.exports = { discoverMonitor, parseGreppable, parseNmapXml, nmapErrorMessage };
