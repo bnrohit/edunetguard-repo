@@ -7,6 +7,7 @@ const MAX_INTERVAL = Math.max(MIN_INTERVAL, parseInt(process.env.USER_MONITOR_MA
 const DEFAULT_TIMEOUT = Math.max(2, parseInt(process.env.USER_MONITOR_DEFAULT_TIMEOUT_SECONDS || '10', 10));
 const MAX_TIMEOUT = Math.max(DEFAULT_TIMEOUT, parseInt(process.env.USER_MONITOR_MAX_TIMEOUT_SECONDS || '30', 10));
 const ALLOW_PUBLIC = process.env.USER_MONITOR_ALLOW_PUBLIC_TARGETS !== 'false';
+const AUTO_DISCOVERY = process.env.USER_MONITOR_AUTO_DISCOVERY !== 'false';
 
 const ALLOWED_CIDRS = String(process.env.USER_MONITOR_ALLOWED_CIDRS || '')
   .split(',')
@@ -46,6 +47,16 @@ function isBlockedIpv4(ip) {
 
 function allowedPrivateIpv4(ip) {
   return ALLOWED_CIDRS.some((cidr) => ipv4InCidr(ip, cidr));
+}
+
+function isPrivateAddress(address) {
+  const family = net.isIP(address);
+  if (family === 4) return isPrivateIpv4(address);
+  if (family === 6) {
+    const value = address.toLowerCase();
+    return value.startsWith('fc') || value.startsWith('fd') || value.startsWith('fe80:') || value === '::1';
+  }
+  return false;
 }
 
 function isBlockedIpv6(ip) {
@@ -161,7 +172,17 @@ function normalizeInput(input) {
     throw Object.assign(new Error(`Timeout must be between 2 and ${MAX_TIMEOUT} seconds.`), { statusCode: 400 });
   }
 
-  return { name, type, target, port, intervalSeconds, timeoutSeconds };
+  const site = String(input?.site || 'My Organization').trim();
+  if (site.length < 2 || site.length > 60) {
+    throw Object.assign(new Error('Site / organization must be between 2 and 60 characters.'), { statusCode: 400 });
+  }
+
+  const notes = String(input?.notes || '').trim();
+  if (notes.length > 300) {
+    throw Object.assign(new Error('Notes must be 300 characters or fewer.'), { statusCode: 400 });
+  }
+
+  return { name, type, target, port, site, notes, intervalSeconds, timeoutSeconds };
 }
 
 async function validateTarget(normalized) {
@@ -184,6 +205,7 @@ function policySummary() {
     maxTimeoutSeconds: MAX_TIMEOUT,
     publicTargetsAllowed: ALLOW_PUBLIC,
     allowedPrivateCidrs: ALLOWED_CIDRS,
+    autoDiscoveryEnabled: AUTO_DISCOVERY,
   };
 }
 
@@ -193,4 +215,5 @@ module.exports = {
   validateTarget,
   resolveAllowedTarget,
   policySummary,
+  isPrivateAddress,
 };

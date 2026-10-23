@@ -4,7 +4,7 @@
 
 EduNetGuard presents a district-focused operations console for service health, response time, uptime, incidents, and grouped infrastructure visibility. A separate monitoring engine runs internally and is not exposed as the user-facing product.
 
-> Status: **v0.5.0** — user-owned Website/Ping/TCP/DNS monitoring, personal history, ownership controls, quotas, and admin governance.
+> Status: **v0.6.0** — cube-based operations views, automatic device discovery/classification, and device-specific troubleshooting guidance.
 
 ---
 
@@ -23,7 +23,7 @@ EduNetGuard is designed to help school IT teams:
 
 ---
 
-## v0.5 features
+## v0.6 features
 
 - EduNetGuard-branded continuity and network-operations dashboard
 - Invite-only EduNetGuard account creation with a shared user join code
@@ -35,6 +35,14 @@ EduNetGuard is designed to help school IT teams:
 - Signed HttpOnly login sessions
 - Personal `/me` dashboard with per-user favorite district monitors
 - User-owned personal monitors: Website/HTTP(S), Ping/IP, TCP Port, and DNS
+- Red/yellow/green site and operational-group cubes for fast outage triage
+- Click-through drill-down from group → device/service details
+- Automatic reverse-DNS and HTTP/TLS discovery for monitored targets
+- Safe single-host Nmap service fingerprinting for administrator-approved private targets
+- Device classification for VMware vCenter/ESXi, Dell/iDRAC, switches, routers, firewalls, APs, cameras, printers, Windows/Linux servers, DNS, websites, and generic infrastructure
+- Device-specific 3–4 step troubleshooting playbooks when a monitor is down
+- Plain-language "what to tell the admin/team" incident text with one-click copy
+- Site/organization grouping on user-owned monitors
 - Add/Edit/Delete/Pause/Resume/Check-Now controls on My Dashboard
 - Per-user monitor status history stored persistently
 - Default quota of 20 user-owned monitors per account
@@ -224,11 +232,34 @@ USER_MONITOR_MAX_TIMEOUT_SECONDS=30
 USER_MONITOR_HISTORY_LIMIT=120
 USER_MONITOR_ALLOW_PUBLIC_TARGETS=true
 USER_MONITOR_ALLOWED_CIDRS=
+USER_MONITOR_AUTO_DISCOVERY=true
+USER_MONITOR_DISCOVERY_TIMEOUT_SECONDS=20
 ```
 
 Private/internal IP monitoring is blocked until an administrator explicitly adds allowed CIDRs. Loopback, link-local, multicast, and other unsafe target ranges remain blocked.
 
 See [`docs/USER_MONITORING.md`](docs/USER_MONITORING.md).
+
+---
+
+## Smart operations and device discovery
+
+EduNetGuard v0.6 is designed to reduce operator stress during an outage.
+
+A user adds a target with a friendly name and **Site / Organization**. EduNetGuard then:
+
+1. runs the normal health check
+2. resolves the target and reverse DNS
+3. for approved private IPs only, runs a small single-host Nmap TCP service fingerprint
+4. inspects safe HTTP/TLS hints when present
+5. classifies the likely device/service type
+6. shows a short troubleshooting playbook when that monitor is down
+
+The built-in Nmap discovery is intentionally limited to one validated target and a fixed set of common infrastructure ports. It does not perform subnet sweeps, vulnerability scripts, credential guessing, stealth/evasion options, or broad port scans.
+
+Public targets do **not** receive Nmap probing; they use DNS and HTTP/TLS discovery only.
+
+See [`docs/SMART_OPERATIONS.md`](docs/SMART_OPERATIONS.md).
 
 ---
 

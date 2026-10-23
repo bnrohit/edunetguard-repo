@@ -3,7 +3,7 @@ FROM node:22-alpine
 WORKDIR /app
 
 COPY package*.json ./
-RUN apk add --no-cache iputils \
+RUN apk add --no-cache iputils nmap \
     && npm install --omit=dev
 
 COPY src/ ./src/
