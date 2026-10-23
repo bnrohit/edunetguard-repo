@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { AlertTriangle, PauseCircle, PlayCircle, RefreshCw, Server, Trash2, Users } from 'lucide-react';
 
@@ -16,7 +16,7 @@ function AdminUserMonitors() {
   const [policyMessage, setPolicyMessage] = useState('');
   const cidrEditing = useRef(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       const response = await axios.get(API_BASE + '/user-monitors/admin/all', {
         withCredentials: true,
@@ -33,13 +33,13 @@ function AdminUserMonitors() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     load();
     const timer = setInterval(load, 20000);
     return () => clearInterval(timer);
-  }, []);
+  }, [load]);
 
   const grouped = useMemo(() => {
     const map = {};
