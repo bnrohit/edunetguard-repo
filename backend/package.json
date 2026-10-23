@@ -1,6 +1,6 @@
 {
   "name": "edunetguard-backend",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "EduNetGuard smart operations API with user-owned monitoring and device discovery",
   "main": "src/index.js",
   "scripts": {
