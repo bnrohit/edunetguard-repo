@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { matchesUserJoinCode, getUserJoinCodeStatus } = require('./join-code');
 
 const DATA_DIR = process.env.USER_DATA_DIR || '/app/user-data';
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
@@ -66,15 +67,14 @@ function safeSecretEquals(a, b) {
 
 function inviteRole(code) {
   const adminCode = process.env.ADMIN_JOIN_CODE;
-  const userCode = process.env.USER_JOIN_CODE;
 
   if (adminCode && safeSecretEquals(code, adminCode)) return 'admin';
-  if (userCode && safeSecretEquals(code, userCode)) return 'user';
+  if (matchesUserJoinCode(code)) return 'user';
   return null;
 }
 
 function registrationEnabled() {
-  return Boolean(process.env.USER_JOIN_CODE || process.env.ADMIN_JOIN_CODE);
+  return Boolean(getUserJoinCodeStatus().configured || process.env.ADMIN_JOIN_CODE);
 }
 
 function createUser({ username, password, inviteCode }) {
