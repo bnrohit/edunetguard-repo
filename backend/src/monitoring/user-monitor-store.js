@@ -107,8 +107,20 @@ function updateMonitor(id, ownerId, changes, allowAdmin = false) {
   if (!monitor) return null;
   if (!allowAdmin && monitor.ownerId !== ownerId) return false;
 
+  const identityChanged =
+    (Object.prototype.hasOwnProperty.call(changes, 'target') && changes.target !== monitor.target) ||
+    (Object.prototype.hasOwnProperty.call(changes, 'type') && changes.type !== monitor.type);
   for (const key of ['name', 'type', 'target', 'port', 'site', 'notes', 'intervalSeconds', 'timeoutSeconds', 'enabled']) {
     if (Object.prototype.hasOwnProperty.call(changes, key)) monitor[key] = changes[key];
+  }
+  // Never show old switch-port evidence or hardware identity for a new device.
+  if (identityChanged) {
+    monitor.discovery = null;
+    monitor.deviceProfile = null;
+    monitor.status = 'pending';
+    monitor.lastResult = null;
+    monitor.lastCheckAt = null;
+    monitor.history = [];
   }
 
   monitor.updatedAt = new Date().toISOString();
