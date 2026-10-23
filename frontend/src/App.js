@@ -24,6 +24,7 @@ import ContinuityInsights from './components/ContinuityInsights';
 import Footer from './components/Footer';
 import LoadingState from './components/LoadingState';
 import ErrorState from './components/ErrorState';
+import AdminConsole from './components/AdminConsole';
 
 const API_BASE = process.env.REACT_APP_API_URL || '/api';
 const REFRESH_INTERVAL = parseInt(process.env.REACT_APP_REFRESH_INTERVAL, 10) || 30000;
@@ -71,17 +72,21 @@ function App() {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [groupFilter, setGroupFilter] = useState('all');
+  const [health, setHealth] = useState(null);
+  const [currentView, setCurrentView] = useState(() => window.location.pathname.startsWith('/admin') ? 'admin' : 'dashboard');
 
   const fetchData = async () => {
     try {
       setRefreshing(true);
-      const [statusRes, configRes] = await Promise.all([
+      const [statusRes, configRes, healthRes] = await Promise.all([
         axios.get(API_BASE + '/status', { timeout: 10000 }),
         axios.get(API_BASE + '/config', { timeout: 5000 }),
+        axios.get(API_BASE + '/health', { timeout: 5000 }),
       ]);
 
       setStatus(statusRes.data);
       setConfig(configRes.data);
+      setHealth(healthRes.data);
       setLastUpdated(new Date());
       setError(null);
     } catch (err) {
@@ -96,7 +101,12 @@ function App() {
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, REFRESH_INTERVAL);
-    return () => clearInterval(interval);
+    const onPopState = () => setCurrentView(window.location.pathname.startsWith('/admin') ? 'admin' : 'dashboard');
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('popstate', onPopState);
+    };
   }, []);
 
   const liveConnected = Boolean(status?.source?.connected) && !status?.demo_mode;
@@ -216,6 +226,17 @@ function App() {
     setGroupFilter('all');
   };
 
+  const navigate = (view) => {
+    const path = view === 'admin' ? '/admin' : '/';
+    window.history.pushState({}, '', path);
+    setCurrentView(view);
+  };
+
+  const adminScheme = config?.admin?.scheme || 'http';
+  const adminHost = config?.admin?.host || window.location.hostname;
+  const adminPort = config?.admin?.port || 3001;
+  const monitoringAdminUrl = adminScheme + '://' + adminHost + ':' + adminPort;
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <style>{':root { --primary-color: ' + primaryColor + '; } .text-primary { color: ' + primaryColor + '; } .bg-primary { background-color: ' + primaryColor + '; } .border-primary { border-color: ' + primaryColor + '; } .hover\\:bg-primary:hover { background-color: ' + primaryColor + '; }'}</style>
@@ -228,8 +249,20 @@ function App() {
         onRefresh={fetchData}
         refreshing={refreshing}
         connected={liveConnected}
+        currentView={currentView}
+        onNavigate={navigate}
       />
 
+      {currentView === 'admin' ? (
+        <AdminConsole
+          productName={productName}
+          status={status}
+          health={health}
+          config={config}
+          adminUrl={monitoringAdminUrl}
+          onBack={() => navigate('dashboard')}
+        />
+      ) : (
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-7 space-y-7">
         <section className="rounded-3xl bg-slate-950 text-white p-6 sm:p-8 shadow-xl overflow-hidden relative">
           <div className="absolute -right-20 -top-24 w-72 h-72 rounded-full bg-primary opacity-20 blur-3xl" />
@@ -407,6 +440,7 @@ function App() {
           <IncidentHistory services={services} />
         )}
       </main>
+      )}
 
       <Footer
         productName={productName}
