@@ -20,12 +20,46 @@
     "showUptimePercentage": true
   },
   "categories": [
-    { "id": "core", "name": "Core Infrastructure", "icon": "server" },
-    { "id": "network", "name": "Network Services", "icon": "wifi" },
-    { "id": "servers", "name": "Servers & Virtualization", "icon": "server" },
-    { "id": "wireless", "name": "Wireless Infrastructure", "icon": "wifi" },
-    { "id": "sites", "name": "Site Connectivity", "icon": "building" },
-    { "id": "learning", "name": "Learning Platforms", "icon": "book" },
-    { "id": "facilities", "name": "Facilities & Safety", "icon": "building" }
-  ]
+    {
+      "id": "core",
+      "name": "Core Infrastructure",
+      "icon": "server"
+    },
+    {
+      "id": "network",
+      "name": "Network Services",
+      "icon": "wifi"
+    },
+    {
+      "id": "servers",
+      "name": "Servers & Virtualization",
+      "icon": "server"
+    },
+    {
+      "id": "wireless",
+      "name": "Wireless Infrastructure",
+      "icon": "wifi"
+    },
+    {
+      "id": "sites",
+      "name": "Site Connectivity",
+      "icon": "building"
+    },
+    {
+      "id": "learning",
+      "name": "Learning Platforms",
+      "icon": "book"
+    },
+    {
+      "id": "facilities",
+      "name": "Facilities & Safety",
+      "icon": "building"
+    }
+  ],
+  "admin": {
+    "enabled": true,
+    "scheme": "http",
+    "host": null,
+    "port": 3001
+  }
 }
