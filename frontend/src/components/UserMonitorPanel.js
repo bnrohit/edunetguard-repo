@@ -302,7 +302,13 @@ function DeviceDetail({ monitor, workingId, onAction, onEdit, onClose }) {
               <p className="text-xs uppercase tracking-[0.12em] text-slate-400 font-bold">Identified as</p>
               <p className="font-bold text-slate-950 mt-2">{profile?.label || 'Discovering device…'}</p>
               <p className="text-xs text-slate-500 mt-1">
-                {[profile?.vendor, profile?.model].filter(Boolean).join(' · ') || (profile ? profile.confidence + ' confidence' : 'Automatic discovery pending')}
+                {[profile?.vendor, profile?.model].filter(Boolean).join(' · ') || (profile ? 'Vendor/model not confirmed' : 'Automatic discovery pending')}
+              </p>
+              {profile && <p className="text-xs text-slate-500 mt-1 font-semibold">{profile.confidence} confidence</p>}
+              {profile?.confidence === 'low' && (
+                <p className="text-xs text-amber-700 mt-1">Identification is a best-effort guess, not verified hardware inventory.</p>
+              )}
+              <p className="hidden">
               </p>
             </div>
             <div className="rounded-2xl border border-slate-200 p-4">
@@ -361,6 +367,13 @@ function DeviceDetail({ monitor, workingId, onAction, onEdit, onClose }) {
 
           <section className="rounded-2xl border border-slate-200 p-5">
             <p className="text-xs uppercase tracking-[0.12em] text-slate-400 font-bold">Discovery facts</p>
+            <div className="mt-2 text-xs text-slate-600 space-y-1">
+              <p>ICMP: {discovery?.icmpReachable == null ? 'Not measured / unknown' : discovery.icmpReachable ? 'Reply received' : 'No response (ICMP may be blocked)'}</p>
+              {discovery?.sshBanner && <p className="break-all">SSH banner: {discovery.sshBanner}</p>}
+              {profile?.evidence?.map((reason, index) => <p key={index}>Classification: {reason}</p>)}
+              {discovery?.nmapNote && <p className="text-amber-700">Nmap: {discovery.nmapNote}</p>}
+              {discovery?.discoveredAt && <p>Identified: {new Date(discovery.discoveredAt).toLocaleString()}</p>}
+            </div>
             <div className="mt-3 flex flex-wrap gap-2">
               {(discovery?.openPorts || []).length ? discovery.openPorts.map((item) => (
                 <span key={item.port} className="px-2.5 py-1 rounded-full border border-slate-200 bg-slate-50 text-xs text-slate-600">
