@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { CirclePause, CirclePlay, RefreshCw, Server, Trash2, Users } from 'lucide-react';
+import { PauseCircle, PlayCircle, RefreshCw, Server, Trash2, Users } from 'lucide-react';
 
 const API_BASE = process.env.REACT_APP_API_URL || '/api';
 
@@ -138,7 +138,7 @@ function AdminUserMonitors() {
                         className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-40"
                         title={monitor.enabled === false ? 'Resume monitor' : 'Pause monitor'}
                       >
-                        {monitor.enabled === false ? <CirclePlay className="w-4 h-4" /> : <CirclePause className="w-4 h-4" />}
+                        {monitor.enabled === false ? <PlayCircle className="w-4 h-4" /> : <PauseCircle className="w-4 h-4" />}
                       </button>
                       <button
                         onClick={() => mutate(monitor, 'delete')}
