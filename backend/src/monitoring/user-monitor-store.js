@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { guidanceFor } = require('./device-guidance');
 
 const DATA_DIR = process.env.USER_DATA_DIR || '/app/user-data';
 const FILE = path.join(DATA_DIR, 'user-monitors.json');
@@ -40,6 +41,7 @@ function sanitizeMonitor(monitor) {
     notes: monitor.notes || '',
     deviceProfile: monitor.deviceProfile || null,
     discovery: monitor.discovery || null,
+    guidance: monitor.deviceProfile ? guidanceFor(monitor.deviceProfile, monitor) : null,
     intervalSeconds: monitor.intervalSeconds,
     timeoutSeconds: monitor.timeoutSeconds,
     enabled: monitor.enabled !== false,
