@@ -3,6 +3,7 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const router = express.Router();
+const { enrichService } = require('../services/network-advisor');
 
 const MONITORING_URL = process.env.UPTIME_KUMA_URL || 'http://uptime-kuma:3001';
 const STATUS_PAGE_SLUG = process.env.UPTIME_KUMA_STATUS_PAGE || 'edunetguard';
@@ -13,7 +14,7 @@ function loadDemoStatus() {
   const raw = fs.readFileSync(DEMO_STATUS_PATH, 'utf8');
   const data = JSON.parse(raw);
   data.timestamp = new Date().toISOString();
-  data.services = data.services.map((service) => ({
+  data.services = data.services.map((service) => enrichService({
     ...service,
     last_check: new Date().toISOString(),
   }));
@@ -143,7 +144,7 @@ function transformMonitoringStatus(pageData, heartbeatData) {
         monitor.uptime
       );
 
-      transformed.services.push({
+      transformed.services.push(enrichService({
         id: monitor.id,
         name: monitor.name,
         status: normalizeMonitorStatus(heartbeat?.status ?? monitor.status),
@@ -153,7 +154,7 @@ function transformMonitoringStatus(pageData, heartbeatData) {
         message: heartbeat?.msg || null,
         group: group.name || 'Infrastructure Services',
         type: monitor.type || null,
-      });
+      }));
     }
   }
 
