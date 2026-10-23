@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Clock, Shield, WifiOff, Radio } from 'lucide-react';
+import { RefreshCw, Clock, Shield, WifiOff, Radio, LayoutDashboard, Settings } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 function StatusHeader({
@@ -10,6 +10,8 @@ function StatusHeader({
   onRefresh,
   refreshing,
   connected,
+  currentView = 'dashboard',
+  onNavigate,
 }) {
   return (
     <header className="bg-white/95 backdrop-blur border-b border-slate-200 sticky top-0 z-50 shadow-sm">
@@ -30,16 +32,37 @@ function StatusHeader({
             </div>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <div className="flex items-center p-1 rounded-xl border border-slate-200 bg-slate-50">
+              <button
+                onClick={() => onNavigate?.('dashboard')}
+                className={currentView === 'dashboard'
+                  ? 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-sm'
+                  : 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900'}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span className="hidden sm:inline">Dashboard</span>
+              </button>
+              <button
+                onClick={() => onNavigate?.('admin')}
+                className={currentView === 'admin'
+                  ? 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-sm'
+                  : 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900'}
+              >
+                <Settings className="w-4 h-4" />
+                <span className="hidden sm:inline">Admin</span>
+              </button>
+            </div>
+
             <div className={connected
-              ? 'hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold bg-emerald-50 text-emerald-700 border-emerald-200'
-              : 'hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold bg-slate-50 text-slate-600 border-slate-200'}>
+              ? 'hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold bg-emerald-50 text-emerald-700 border-emerald-200'
+              : 'hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold bg-slate-50 text-slate-600 border-slate-200'}>
               {connected ? <Radio className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
               {connected ? 'Live telemetry' : 'Telemetry unavailable'}
             </div>
 
             {lastUpdated && (
-              <div className="hidden sm:flex text-xs text-slate-500 items-center gap-1.5">
+              <div className="hidden xl:flex text-xs text-slate-500 items-center gap-1.5">
                 <Clock className="w-4 h-4" />
                 <span>Synced {formatDistanceToNow(lastUpdated, { addSuffix: true })}</span>
               </div>
