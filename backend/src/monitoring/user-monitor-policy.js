@@ -171,7 +171,17 @@ function normalizeInput(input) {
     throw Object.assign(new Error(`Timeout must be between 2 and ${MAX_TIMEOUT} seconds.`), { statusCode: 400 });
   }
 
-  return { name, type, target, port, intervalSeconds, timeoutSeconds };
+  const site = String(input?.site || 'My Organization').trim();
+  if (site.length < 2 || site.length > 60) {
+    throw Object.assign(new Error('Site / organization must be between 2 and 60 characters.'), { statusCode: 400 });
+  }
+
+  const notes = String(input?.notes || '').trim();
+  if (notes.length > 300) {
+    throw Object.assign(new Error('Notes must be 300 characters or fewer.'), { statusCode: 400 });
+  }
+
+  return { name, type, target, port, site, notes, intervalSeconds, timeoutSeconds };
 }
 
 async function validateTarget(normalized) {
