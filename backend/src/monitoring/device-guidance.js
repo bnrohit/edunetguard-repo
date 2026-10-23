@@ -235,18 +235,94 @@ const PLAYBOOKS = {
   },
 };
 
+const READ_ONLY_COMMANDS = Object.freeze({
+  switch: [
+    'Cisco IOS/NX-OS: show interfaces status',
+    'Cisco: show cdp neighbors detail; show lldp neighbors detail',
+    'Cisco: show mac address-table address <endpoint-mac>',
+    'ExtremeXOS: show ports information; show fdb <endpoint-mac>',
+  ],
+  router: [
+    'Cisco: show ip route; show ip ospf neighbor',
+    'VyOS: show interfaces; show ip route; show ip ospf neighbor',
+  ],
+  'access-point': [
+    'On its upstream switch: show interfaces status',
+    'On its upstream switch: show power inline; show lldp neighbors detail',
+  ],
+  camera: [
+    'On its upstream switch: show power inline',
+    'On its upstream switch: show mac address-table address <camera-mac>',
+  ],
+  'dell-server': [
+    'On the access switch: show interfaces status',
+    'On the access switch: show mac address-table address <server-mac>',
+  ],
+  esxi: [
+    'ESXi Shell: esxcli network nic list',
+    'ESXi Shell: esxcli storage core path list',
+  ],
+  'windows-server': [
+    'PowerShell: Test-Connection <server-ip> -Count 2',
+    'PowerShell: Get-NetAdapter; Get-Service',
+  ],
+  'linux-server': [
+    'Linux: ip -br address; ip route',
+    'Linux: systemctl --failed; journalctl -p warning -n 30',
+  ],
+  'dns-server': [
+    'Linux: dig @<dns-ip> example.org',
+    'Windows: Resolve-DnsName example.org -Server <dns-ip>',
+  ],
+  printer: [
+    'On the switch: show interfaces status',
+    'On the switch: show mac address-table address <printer-mac>',
+  ],
+  firewall: ['Review read-only HA, session, routing, and interface status in the vendor console.'],
+  vcenter: ['In vCenter: check Hosts and Clusters, alarms, and datastore status.'],
+  website: ['Linux: curl -I --max-time 5 https://<website-host>'],
+});
 function guidanceFor(profile, monitor) {
   const playbook = PLAYBOOKS[profile?.type] || PLAYBOOKS['generic-device'];
   const status = monitor?.status || 'pending';
+  const last = String(monitor?.lastResult?.message || '');
+  const topology = monitor?.discovery?.topology;
+  const hints = [];
+  if (topology?.status === 'candidates' && topology.matches?.length) {
+    const first = topology.matches[0];
+    hints.push('Possible learned port: ' + first.switchIp + ' / ' + first.port +
+      '. Confirm this is an access port, not an uplink, before taking action.');
+  }
+  if (status === 'down' && /timed out|No ICMP|unreachable|EHOST|ENET/i.test(last)) {
+    hints.push('No network response: check power, the gateway and switch uplink before restarting any service.');
+  } else if (status === 'down' && /refused|HTTP 5\d\d|TCP/i.test(last)) {
+    hints.push('The host may be reachable but the service is failing: check its application and management logs.');
+  }
+  if (monitor?.discovery?.nmapNote) {
+    hints.push('Service identification had a limitation: ' + String(monitor.discovery.nmapNote).slice(0, 120));
+  }
+  const portLocation = topology?.status === 'candidates'
+    ? 'Candidate FDB location; verify against current MAC/LLDP/CDP data.'
+    : topology?.note || 'Switch port not yet identified. Use Find Switch Port after read-only SNMPv3 is configured.';
+  const suggestions = [...hints, ...playbook.suggestions].slice(0, 5);
   return {
     state: status === 'down' ? 'action-required' : status === 'up' ? 'healthy' : 'checking',
     headline: status === 'down'
       ? profile.label + ' needs attention'
       : status === 'up'
-        ? profile.label + ' is responding'
-        : 'Checking ' + profile.label,
-    suggestions: playbook.suggestions.slice(0, 4),
-    adminMessage: playbook.report,
+        ? profile.label + ' is responding — troubleshooting reference'
+        : 'How to troubleshoot ' + profile.label,
+    suggestions,
+    readOnlyCommands: READ_ONLY_COMMANDS[profile?.type] || [
+      'Check the device management interface and upstream switch MAC table (read-only).',
+    ],
+    collect: ['Device IP and site', 'Last result / time', 'Detected ports and device evidence',
+      'Switch MAC / port and VLAN (when independently confirmed)'],
+    portLocation,
+    adminMessage: status === 'down'
+      ? playbook.report + (topology?.status === 'candidates' ?
+        ' Possible learned switch port: ' + topology.matches[0].switchIp + ' / ' + topology.matches[0].port + ' (not verified).' : '')
+      : profile.label + ' responds. Use the read-only checks if users report a partial outage.',
   };
 }
 
