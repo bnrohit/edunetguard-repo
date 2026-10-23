@@ -71,3 +71,14 @@ Blocked by default regardless of user authentication:
 Do not configure `10.0.0.0/8`, `172.16.0.0/12`, or `192.168.0.0/16` broadly unless every EduNetGuard user is authorized to probe the entire corresponding space.
 
 Use narrower school/site/NOC ranges whenever possible.
+
+
+## v0.6 smart setup
+
+Personal monitors now include **Site / Organization**. The My Dashboard view groups monitors into status cubes instead of requiring users to scan a long list.
+
+After a monitor is created, device discovery runs separately from the uptime check. When identification completes the device card can show the likely device type, vendor/model evidence, reverse DNS, resolved address and common open service ports.
+
+When a monitor is Down, open it to see a short device-specific troubleshooting playbook and a plain-language message that can be copied to another administrator.
+
+Use **Identify Again** after a device replacement, IP reassignment, firmware change, or when the original classification was incomplete.
