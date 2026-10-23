@@ -16,8 +16,8 @@ fi
 set_env_value() {
   local key="$1"
   local value="$2"
-  if grep -q "^\${key}=" .env; then
-    sed -i "s|^\${key}=.*|\${key}=\${value}|" .env
+  if grep -q "^${key}=" .env; then
+    sed -i "s|^${key}=.*|${key}=${value}|" .env
   else
     printf '%s=%s\n' "$key" "$value" >> .env
   fi
@@ -25,7 +25,7 @@ set_env_value() {
 
 get_env_value() {
   local key="$1"
-  sed -n "s/^\${key}=//p" .env | tail -n 1
+  sed -n "s/^${key}=//p" .env | tail -n 1
 }
 
 if [[ -z "$(get_env_value AUTH_SECRET)" ]]; then
@@ -67,9 +67,9 @@ docker compose up -d
 
 echo "== Verify =="
 docker compose ps
-curl -fsS "http://127.0.0.1:\${API_PORT:-4000}/health"
+curl -fsS "http://127.0.0.1:${API_PORT:-4000}/health"
 echo
-curl -fsSI "http://127.0.0.1:\${WEB_PORT:-3000}" | head
+curl -fsSI "http://127.0.0.1:${WEB_PORT:-3000}" | head
 
 echo
 echo "== Monitoring engine version =="
