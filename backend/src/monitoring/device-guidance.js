@@ -23,6 +23,8 @@ function classifyDevice(monitor, discovery) {
   const dnsText = (discovery?.reverseDns || []).join(' ').toLowerCase();
   const observed = [
     discovery?.sshBanner,
+    discovery?.snmp?.sysDescr,
+    discovery?.snmp?.sysName,
     ...(discovery?.openPorts || []).flatMap((p) => [p.product, p.service]),
     ...(discovery?.web || []).flatMap((w) => [w.title, w.server, w.poweredBy, w.certificate?.subject]),
   ].filter(Boolean).join(' ').toLowerCase();
