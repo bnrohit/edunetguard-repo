@@ -6,7 +6,7 @@ services:
     container_name: edunetguard-frontend
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "${WEB_PORT:-3000}:80"
     environment:
       - REACT_APP_API_URL=/api
       - REACT_APP_REFRESH_INTERVAL=${REACT_APP_REFRESH_INTERVAL:-30000}
@@ -23,7 +23,7 @@ services:
     container_name: edunetguard-backend
     restart: unless-stopped
     ports:
-      - "4000:4000"
+      - "127.0.0.1:${API_PORT:-4000}:4000"
     environment:
       - NODE_ENV=production
       - PORT=4000
@@ -39,7 +39,7 @@ services:
       uptime-kuma:
         condition: service_started
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:4000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -52,7 +52,7 @@ services:
     container_name: edunetguard-kuma
     restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "127.0.0.1:${KUMA_ADMIN_PORT:-3001}:3001"
     volumes:
       - uptime-kuma-data:/app/data
     environment:
