@@ -131,6 +131,7 @@ async function readSnmpIdentity(ip) {
   return {
     sysDescr: stringFromValue(descriptions[0].value).slice(0, 120),
     sysName: names.length && !/No Such/i.test(names[0].value) ? stringFromValue(names[0].value) : null,
+    role: targets('USER_MONITOR_TOPOLOGY_SWITCHES', 12).includes(ip) ? 'switch' : 'gateway',
     source: 'SNMPv3 sysDescr/sysName',
   };
 }
