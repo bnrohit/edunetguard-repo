@@ -25,6 +25,8 @@ async function checkHttp(monitor) {
   const response = await axios.get(monitor.target, {
     timeout: monitor.timeoutSeconds * 1000,
     maxRedirects: 0,
+    proxy: false, // Do not let HTTP(S)_PROXY bypass the target's validated and pinned DNS address.
+    responseType: 'stream', // A status check must not download unbounded website content.
     validateStatus: () => true,
     httpAgent,
     httpsAgent,
@@ -34,6 +36,7 @@ async function checkHttp(monitor) {
     },
   });
   const ms = elapsedMs(start);
+  response.data?.destroy?.();
   const ok = response.status >= 200 && response.status < 400;
   return {
     status: ok ? 'up' : 'down',
