@@ -308,8 +308,6 @@ function DeviceDetail({ monitor, workingId, onAction, onEdit, onClose }) {
               {profile?.confidence === 'low' && (
                 <p className="text-xs text-amber-700 mt-1">Identification is a best-effort guess, not verified hardware inventory.</p>
               )}
-              <p className="hidden">
-              </p>
             </div>
             <div className="rounded-2xl border border-slate-200 p-4">
               <p className="text-xs uppercase tracking-[0.12em] text-slate-400 font-bold">Resolved IP</p>
