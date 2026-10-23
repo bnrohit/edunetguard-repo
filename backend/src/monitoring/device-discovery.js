@@ -68,10 +68,12 @@ async function nmapFingerprint(address) {
     let stdout = '';
     let stderr = '';
     let settled = false;
+    let killTimer = null;
 
     const finish = (value) => {
       if (settled) return;
       settled = true;
+      if (killTimer) clearTimeout(killTimer);
       resolve(value);
     };
 
@@ -90,10 +92,11 @@ async function nmapFingerprint(address) {
       ports: parseGreppable(stdout),
     }));
 
-    setTimeout(() => {
+    killTimer = setTimeout(() => {
       child.kill('SIGKILL');
       finish({ skipped: true, reason: 'Discovery timed out.', ports: parseGreppable(stdout) });
-    }, (NMAP_TIMEOUT_SECONDS + 3) * 1000).unref?.();
+    }, (NMAP_TIMEOUT_SECONDS + 3) * 1000);
+    killTimer.unref?.();
   });
 }
 
