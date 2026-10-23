@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { PauseCircle, PlayCircle, RefreshCw, Server, Trash2, Users } from 'lucide-react';
+import { AlertTriangle, PauseCircle, PlayCircle, RefreshCw, Server, Trash2, Users } from 'lucide-react';
 
 const API_BASE = process.env.REACT_APP_API_URL || '/api';
 
@@ -52,6 +52,11 @@ function AdminUserMonitors() {
           { enabled: monitor.enabled === false },
           { withCredentials: true, timeout: 8000 }
         );
+      } else if (action === 'discover') {
+        await axios.post(API_BASE + '/user-monitors/admin/' + monitor.id + '/discover', {}, {
+          withCredentials: true,
+          timeout: 30000,
+        });
       } else if (action === 'delete') {
         if (!window.confirm('Admin delete this user-owned monitor and its history?')) return;
         await axios.delete(API_BASE + '/user-monitors/admin/' + monitor.id, {
@@ -123,8 +128,19 @@ function AdminUserMonitors() {
                           </span>
                         </div>
                         <p className="text-xs text-slate-500 mt-1 break-all">
-                          {monitor.type.toUpperCase()} · {monitor.target}{monitor.port ? ':' + monitor.port : ''}
+                          {(monitor.site || 'My Organization') + ' · ' + (monitor.deviceProfile?.label || monitor.type.toUpperCase()) + ' · ' + monitor.target + (monitor.port ? ':' + monitor.port : '')}
                         </p>
+                        {monitor.deviceProfile && (
+                          <p className="text-xs text-slate-400 mt-1">
+                            {[monitor.deviceProfile.vendor, monitor.deviceProfile.model, monitor.discovery?.resolvedIp].filter(Boolean).join(' · ')}
+                          </p>
+                        )}
+                        {monitor.status === 'down' && monitor.guidance?.suggestions?.[0] && (
+                          <div className="mt-2 flex items-start gap-2 text-xs text-red-700">
+                            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-none" />
+                            <span>First check: {monitor.guidance.suggestions[0]}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -132,6 +148,14 @@ function AdminUserMonitors() {
                       {monitor.lastResult?.responseTimeMs != null && (
                         <span className="text-xs text-slate-400">{monitor.lastResult.responseTimeMs} ms</span>
                       )}
+                      <button
+                        onClick={() => mutate(monitor, 'discover')}
+                        disabled={workingId === monitor.id}
+                        className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-40"
+                        title="Identify device again"
+                      >
+                        <RefreshCw className={'w-4 h-4 ' + (workingId === monitor.id ? 'animate-spin' : '')} />
+                      </button>
                       <button
                         onClick={() => mutate(monitor, 'toggle')}
                         disabled={workingId === monitor.id}
