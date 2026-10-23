@@ -6,7 +6,6 @@ import {
   CheckCircle,
   Clipboard,
   Clock3,
-  Globe2,
   PauseCircle,
   Pencil,
   PlayCircle,
@@ -523,10 +522,10 @@ function UserMonitorPanel() {
   }, []);
 
   useEffect(() => {
-    if (selectedMonitor) {
-      const fresh = monitors.find((item) => item.id === selectedMonitor.id);
-      if (fresh) setSelectedMonitor(fresh);
-    }
+    setSelectedMonitor((current) => {
+      if (!current) return current;
+      return monitors.find((item) => item.id === current.id) || current;
+    });
   }, [monitors]);
 
   const sites = useMemo(() => {
