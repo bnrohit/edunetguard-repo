@@ -552,7 +552,9 @@ function App() {
           setAuthUser(user);
           setAuthOpen(false);
           const target = user.role === 'admin' && currentView === 'admin' ? 'admin' : 'me';
-          navigate(target);
+          const path = target === 'admin' ? '/admin' : '/me';
+          window.history.pushState({}, '', path);
+          setCurrentView(target);
         }}
       />
     </div>
