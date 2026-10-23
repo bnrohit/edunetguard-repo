@@ -5,12 +5,22 @@ const router = express.Router();
 const { requireAuth, requireAdmin } = require('./auth');
 const store = require('../monitoring/user-monitor-store');
 const runner = require('../monitoring/user-monitor-runner');
+const { discoverMonitor } = require('../monitoring/device-discovery');
+const { classifyDevice } = require('../monitoring/device-guidance');
 const {
   MAX_PER_USER,
   normalizeInput,
   validateTarget,
   policySummary,
 } = require('../monitoring/user-monitor-policy');
+
+const discoveryLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 6,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many discovery requests. Try again later.' },
+});
 
 const manualCheckLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -19,6 +29,21 @@ const manualCheckLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many manual monitor checks. Try again shortly.' },
 });
+
+async function discoverAndSave(monitor, ownerId, allowAdmin = false) {
+  const discovery = await discoverMonitor(monitor);
+  const profile = classifyDevice(monitor, discovery);
+  return store.updateDiscovery(monitor.id, ownerId, discovery, profile, allowAdmin);
+}
+
+function scheduleDiscovery(monitor, ownerId) {
+  if (process.env.USER_MONITOR_AUTO_DISCOVERY === 'false') return;
+  setImmediate(() => {
+    discoverAndSave(monitor, ownerId).catch((error) => {
+      console.warn('User monitor discovery failed:', monitor.id, error.message);
+    });
+  });
+}
 
 function notFoundOrDenied(result, res) {
   if (result === false) return res.status(403).json({ error: 'You do not own this monitor.' });
@@ -32,6 +57,19 @@ router.get('/policy', requireAuth, (req, res) => {
 
 router.get('/admin/all', requireAdmin, (req, res) => {
   res.json({ monitors: store.listAll(), policy: policySummary() });
+});
+
+router.post('/admin/:id/discover', discoveryLimiter, requireAdmin, async (req, res) => {
+  try {
+    const current = store.findById(req.params.id);
+    if (!current) return res.status(404).json({ error: 'Monitor not found.' });
+    const updated = await discoverAndSave(current, req.user.id, true);
+    return res.json({ monitor: updated });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      error: error.statusCode ? error.message : 'Unable to discover device.',
+    });
+  }
 });
 
 router.patch('/admin/:id', requireAdmin, async (req, res) => {
@@ -73,7 +111,8 @@ router.post('/', requireAuth, async (req, res) => {
     await validateTarget(normalized);
     const monitor = store.createMonitor(req.user, normalized);
     const checked = await runner.runMonitor(monitor.id);
-    return res.status(201).json({ monitor: checked || monitor });
+    scheduleDiscovery(checked || monitor, req.user.id);
+    return res.status(201).json({ monitor: checked || monitor, discovery: 'scheduled' });
   } catch (error) {
     return res.status(error.statusCode || 500).json({
       error: error.statusCode ? error.message : 'Unable to create monitor.',
@@ -100,6 +139,8 @@ router.patch('/:id', requireAuth, async (req, res) => {
         port: Object.prototype.hasOwnProperty.call(req.body || {}, 'port') ? req.body.port : current.port,
         intervalSeconds: req.body?.intervalSeconds ?? current.intervalSeconds,
         timeoutSeconds: req.body?.timeoutSeconds ?? current.timeoutSeconds,
+        site: req.body?.site ?? current.site,
+        notes: req.body?.notes ?? current.notes,
       };
       changes = normalizeInput(merged);
       await validateTarget(changes);
@@ -112,6 +153,13 @@ router.patch('/:id', requireAuth, async (req, res) => {
 
     if (updated.enabled !== false) {
       const checked = await runner.runMonitor(updated.id);
+      if (
+        req.body?.target !== undefined ||
+        req.body?.type !== undefined ||
+        req.body?.name !== undefined
+      ) {
+        scheduleDiscovery(checked || updated, req.user.id);
+      }
       return res.json({ monitor: checked || updated });
     }
     return res.json({ monitor: updated });
@@ -127,6 +175,21 @@ router.delete('/:id', requireAuth, (req, res) => {
   const denied = notFoundOrDenied(removed, res);
   if (denied) return denied;
   return res.json({ removed: true, monitor: removed });
+});
+
+router.post('/:id/discover', discoveryLimiter, requireAuth, async (req, res) => {
+  try {
+    const current = store.findById(req.params.id);
+    if (!current) return res.status(404).json({ error: 'Monitor not found.' });
+    if (current.ownerId !== req.user.id) return res.status(403).json({ error: 'You do not own this monitor.' });
+
+    const updated = await discoverAndSave(current, req.user.id);
+    return res.json({ monitor: updated });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      error: error.statusCode ? error.message : 'Unable to discover device.',
+    });
+  }
 });
 
 router.post('/:id/check', manualCheckLimiter, requireAuth, async (req, res) => {
