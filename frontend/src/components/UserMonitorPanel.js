@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   Activity,
-  CirclePause,
-  CirclePlay,
+  PauseCircle,
+  PlayCircle,
   Clock3,
   Globe2,
   Pencil,
@@ -378,7 +378,7 @@ function UserMonitorPanel() {
                       title={monitor.enabled === false ? 'Resume' : 'Pause'}
                       className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-40"
                     >
-                      {monitor.enabled === false ? <CirclePlay className="w-4 h-4" /> : <CirclePause className="w-4 h-4" />}
+                      {monitor.enabled === false ? <PlayCircle className="w-4 h-4" /> : <PauseCircle className="w-4 h-4" />}
                     </button>
                     <button
                       onClick={() => mutate(monitor.id, 'delete')}
