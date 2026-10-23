@@ -1,5 +1,6 @@
 const express = require('express');
 const axios = require('axios');
+const fs = require('fs');
 const { version } = require('../../package.json');
 const router = express.Router();
 
@@ -16,11 +17,20 @@ router.get('/', async (req, res) => {
     engineError = error.message;
   }
 
+  // Alpine separates Nmap from its NSE runtime data. Report that separately:
+  // a healthy monitoring engine does not imply device identification works.
+  const discoveryReady =
+    fs.existsSync('/usr/share/nmap/nse_main.lua') &&
+    fs.existsSync('/usr/share/nmap/nmap-service-probes');
+
   res.json({
-    status: 'healthy',
+    status: discoveryReady ? 'healthy' : 'degraded',
     service: 'edunetguard-api',
     monitoring_engine: engine,
     monitoring_engine_error: engineError,
+    device_discovery: discoveryReady ? 'ready' : 'unavailable',
+    device_discovery_error: discoveryReady ? null :
+      'Nmap NSE runtime data missing; rebuild backend with nmap-nselibs and nmap-scripts.',
     timestamp: new Date().toISOString(),
     version,
   });

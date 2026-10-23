@@ -1,7 +1,13 @@
-const { parseGreppable, parseNmapXml } = require('./device-discovery');
+const { parseGreppable, parseNmapXml, nmapErrorMessage } = require('./device-discovery');
 const { classifyDevice, guidanceFor } = require('./device-guidance');
 
 describe('EduNetGuard smart device discovery', () => {
+  test('gives actionable error when Alpine Nmap NSE core is missing', () => {
+    const output = 'NSE: failed to initialize the script engine: could not locate nse_main.lua stack traceback: [C]: in ? QUITTING!';
+    expect(nmapErrorMessage(output, 1)).toContain('nmap-nselibs and nmap-scripts');
+    expect(nmapErrorMessage('Unable to connect to server', 1)).toContain('Unable to connect');
+  });
+
   test('parses XML service versions from one private host', () => {
     const xml = `<nmaprun><host><ports>
       <port protocol="tcp" portid="22"><state state="open" reason="syn-ack"/><service name="ssh" product="Cisco SSH" version="1.25"/></port>

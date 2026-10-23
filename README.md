@@ -4,7 +4,7 @@
 
 EduNetGuard presents a district-focused operations console for service health, response time, uptime, incidents, and grouped infrastructure visibility. A separate monitoring engine runs internally and is not exposed as the user-facing product.
 
-> Status: **v0.7.0** — persistent admin-managed private CIDRs, enhanced ICMP/Nmap/SSH discovery, and evidence-based device identification.
+> Status: **v0.7.1** — persistent admin-managed private CIDRs, enhanced ICMP/Nmap/SSH discovery, validated Alpine Nmap NSE runtime, and evidence-based device identification.
 
 ---
 
@@ -454,3 +454,10 @@ MIT License. See [`LICENSE`](LICENSE).
 
 - Uptime Kuma for the internal monitoring engine; its native UI is intentionally not the EduNetGuard user-facing experience
 - School IT teams maintaining critical educational infrastructure
+
+
+### Nmap discovery troubleshooting (v0.7.1)
+
+Alpine's `nmap` package does not automatically install the NSE engine data used by `-sV`. The backend image now includes `nmap-nselibs` and `nmap-scripts`, and its Docker build fails if a single-host Nmap service scan fails as the runtime user.
+
+Run `bash scripts/verify-discovery.sh` after upgrading. A responsive ping by itself does **not** establish the type or model of the device. Approve only explicitly authorized networks in Admin → Network Discovery Policy, then use `bash scripts/diagnose-device.sh <approved-ip>` or **Identify Again**.
