@@ -4,7 +4,7 @@
 
 EduNetGuard presents a district-focused operations console for service health, response time, uptime, incidents, and grouped infrastructure visibility. A separate monitoring engine runs internally and is not exposed as the user-facing product.
 
-> Status: **v0.3** — branded continuity console with hardened internal monitoring, live filtering, continuity insights, and operator-focused incident visibility.
+> Status: **v0.3.1** — branded continuity console with an integrated Admin Console and one-click monitor management.
 
 ---
 
@@ -27,7 +27,9 @@ EduNetGuard is designed to help school IT teams:
 
 - EduNetGuard-branded continuity and network-operations dashboard
 - Monitoring engine hidden behind the EduNetGuard product surface
-- Monitoring admin bound to loopback by default instead of the LAN
+- Integrated EduNetGuard Admin Console with Dashboard/Admin navigation
+- One-click Monitor Management from the Admin Console
+- Monitoring admin remains loopback-only by default for generic deployments; internal deployments can bind it to a trusted server interface
 - Backend API bound to loopback while the frontend proxies API requests internally
 - Live operational/degraded/down/maintenance states
 - 24-hour uptime summary and response-time display
@@ -91,7 +93,8 @@ Open:
 
 ```text
 EduNetGuard Dashboard: http://localhost:3000
-Monitoring Admin:      http://127.0.0.1:3001 (server-local / SSH tunnel)
+EduNetGuard Admin:      http://localhost:3000/admin
+Monitor Management:    configured from the EduNetGuard Admin Console
 EduNetGuard API:       http://localhost:4000
 ```
 
@@ -133,15 +136,24 @@ ALLOW_DEMO_FALLBACK=false
 
 ---
 
-### Access the internal monitoring admin
+### Admin Console
 
-Production Compose binds the monitoring admin to server loopback only. From an authorized workstation:
+Open:
 
-```bash
-ssh -L 3001:127.0.0.1:3001 rohith@<edunetguard-server>
+```text
+http://<edunetguard-server>:3000/admin
 ```
 
-Then open `http://127.0.0.1:3001` on that workstation. Closing the SSH session closes the tunnel.
+The Admin Console shows platform health, monitor counts, active alerts, maintenance state and response-time telemetry.
+
+For generic deployments, monitor management remains loopback-only by default. To make the protected monitor editor reachable on a trusted internal server interface, set:
+
+```env
+KUMA_BIND_IP=<trusted-server-ip>
+KUMA_ADMIN_PORT=3001
+```
+
+Then the Admin Console's **Open Monitor Management** button opens the monitoring engine's authenticated editor on that same server.
 
 ---
 
@@ -240,9 +252,9 @@ Do **not** publish:
 
 For production:
 
-- Keep the native monitoring admin loopback-only and use SSH tunneling for authorized IT staff
+- Keep the monitor-management port restricted to a trusted internal interface or management network
 - Put externally reachable services behind HTTPS
-- Keep ports `3001` and `4000` bound to `127.0.0.1` unless there is a documented operational reason to expose them
+- Keep port `4000` loopback-only; expose port `3001` only on a trusted internal interface when one-click monitor administration is required
 - Publish only monitor names appropriate for the dashboard audience
 - Set `ALLOW_DEMO_FALLBACK=false` after validating live monitoring
 

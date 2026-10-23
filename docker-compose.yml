@@ -52,7 +52,7 @@ services:
     container_name: edunetguard-kuma
     restart: unless-stopped
     ports:
-      - "127.0.0.1:${KUMA_ADMIN_PORT:-3001}:3001"
+      - "${KUMA_BIND_IP:-127.0.0.1}:${KUMA_ADMIN_PORT:-3001}:3001"
     volumes:
       - uptime-kuma-data:/app/data
     environment:

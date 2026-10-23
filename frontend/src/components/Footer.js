@@ -35,7 +35,7 @@ function Footer({
 
         <div className="mt-6 pt-5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-400">
           <span>© {new Date().getFullYear()} EduNetGuard</span>
-          <span>EduNetGuard v0.3.0 · Continuity Console</span>
+          <span>EduNetGuard v0.3.1 · Continuity Console</span>
         </div>
       </div>
     </footer>
