@@ -4,7 +4,7 @@
 
 EduNetGuard presents a district-focused operations console for service health, response time, uptime, incidents, and grouped infrastructure visibility. A separate monitoring engine runs internally and is not exposed as the user-facing product.
 
-> Status: **v0.4.0** — invite-only user accounts, personal dashboards, role-aware administration, and a current Uptime Kuma 2.x monitoring engine.
+> Status: **v0.4.1** — password-gated join-code reveal/rotation in the Admin Console, invite-only accounts, personal dashboards, and current monitoring.
 
 ---
 
@@ -27,6 +27,9 @@ EduNetGuard is designed to help school IT teams:
 
 - EduNetGuard-branded continuity and network-operations dashboard
 - Invite-only EduNetGuard account creation with a shared user join code
+- Admin Console can reveal the normal-user join code only after the current admin re-enters their password
+- Revealed join code auto-hides after 60 seconds and supports Copy/Hide
+- Admins can rotate the normal-user join code after password re-authentication; existing user accounts remain valid
 - Separate administrator join code for role-aware Admin Console access
 - Salted scrypt password hashing; plaintext passwords are never stored
 - Signed HttpOnly login sessions
