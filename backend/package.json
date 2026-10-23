@@ -1,6 +1,6 @@
 {
   "name": "edunetguard-backend",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Read-only monitoring aggregation API for the EduNetGuard continuity console",
   "main": "src/index.js",
   "scripts": {
