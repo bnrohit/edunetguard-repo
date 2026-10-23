@@ -4,7 +4,7 @@
 
 EduNetGuard presents a district-focused operations console for service health, response time, uptime, incidents, and grouped infrastructure visibility. A separate monitoring engine runs internally and is not exposed as the user-facing product.
 
-> Status: **v0.3.1** — branded continuity console with an integrated Admin Console and one-click monitor management.
+> Status: **v0.4.0** — invite-only user accounts, personal dashboards, role-aware administration, and a current Uptime Kuma 2.x monitoring engine.
 
 ---
 
@@ -23,10 +23,16 @@ EduNetGuard is designed to help school IT teams:
 
 ---
 
-## v0.3 features
+## v0.4 features
 
 - EduNetGuard-branded continuity and network-operations dashboard
-- Monitoring engine hidden behind the EduNetGuard product surface
+- Invite-only EduNetGuard account creation with a shared user join code
+- Separate administrator join code for role-aware Admin Console access
+- Salted scrypt password hashing; plaintext passwords are never stored
+- Signed HttpOnly login sessions
+- Personal `/me` dashboard with per-user favorite monitors
+- Persistent `edunetguard-user-data` Docker volume for accounts/preferences
+- Current Uptime Kuma 2.x monitoring engine behind the EduNetGuard product surface; v2.5.7+ provides SFTP/NTP monitoring, unlimited intervals, expanded notifications, TCP retry fixes, and current Docker security updates
 - Integrated EduNetGuard Admin Console with Dashboard/Admin navigation
 - One-click Monitor Management from the Admin Console
 - Monitoring admin remains loopback-only by default for generic deployments; internal deployments can bind it to a trusted server interface
@@ -93,6 +99,7 @@ Open:
 
 ```text
 EduNetGuard Dashboard: http://localhost:3000
+My Dashboard:           http://localhost:3000/me
 EduNetGuard Admin:      http://localhost:3000/admin
 Monitor Management:    configured from the EduNetGuard Admin Console
 EduNetGuard API:       http://localhost:4000
@@ -154,6 +161,32 @@ KUMA_ADMIN_PORT=3001
 ```
 
 Then the Admin Console's **Open Monitor Management** button opens the monitoring engine's authenticated editor on that same server.
+
+---
+
+## Invite-only user accounts
+
+EduNetGuard accounts are separate from the monitoring engine administrator account.
+
+Configure three secrets in `.env`:
+
+```env
+AUTH_SECRET=<64+ hex characters>
+USER_JOIN_CODE=<secret code you give normal users>
+ADMIN_JOIN_CODE=<different secret code for EduNetGuard administrators>
+```
+
+Generate an application session secret with:
+
+```bash
+openssl rand -hex 32
+```
+
+A normal user chooses **Sign In → Create Account**, enters a username/password plus `USER_JOIN_CODE`, and receives a personal dashboard at `/me`. An account created with `ADMIN_JOIN_CODE` receives the `admin` role and can open `/admin`.
+
+The shared join codes are reusable until you rotate or remove them from `.env`. Existing user accounts continue working after a join code is rotated.
+
+See [`docs/ACCOUNTS.md`](docs/ACCOUNTS.md).
 
 ---
 
@@ -235,6 +268,12 @@ The `-v` flag can remove the persistent Uptime Kuma volume.
 | `GET /api/config` | Dashboard configuration |
 | `GET /api/sites` | Embedded site inventory sample |
 | `GET /api/dhcp` | Embedded DHCP scope sample |
+| `POST /api/auth/register` | Create an invite-only EduNetGuard account |
+| `POST /api/auth/login` | Sign in |
+| `POST /api/auth/logout` | Sign out |
+| `GET /api/auth/me` | Current signed-in user |
+| `PATCH /api/auth/preferences` | Save personal dashboard favorites |
+| `GET /api/auth/users` | Admin-only account list |
 
 ---
 
@@ -254,6 +293,9 @@ For production:
 
 - Keep the monitor-management port restricted to a trusted internal interface or management network
 - Put externally reachable services behind HTTPS
+- Keep `AUTH_SECRET`, `USER_JOIN_CODE`, and `ADMIN_JOIN_CODE` only in the server-side `.env`; never commit them
+- Use different normal-user and administrator join codes
+- Rotate a join code immediately if it is disclosed
 - Keep port `4000` loopback-only; expose port `3001` only on a trusted internal interface when one-click monitor administration is required
 - Publish only monitor names appropriate for the dashboard audience
 - Set `ALLOW_DEMO_FALLBACK=false` after validating live monitoring
@@ -270,6 +312,7 @@ edunetguard-repo/
 ├── backend/           # Node.js read-only API/aggregation layer
 ├── config/            # Public-safe dashboard branding/config
 ├── data/              # Demo/sample data
+├── /app/user-data     # Persistent account/preferences data inside backend volume
 ├── docs/              # Installation, monitoring, upgrade, roadmap, security
 └── docker-compose.yml # Frontend + backend + Uptime Kuma
 ```
@@ -308,7 +351,7 @@ Planned K-12 capabilities include:
 - Cisco/SNMP read-only switch health
 - Configuration risk validation integration
 - PDF outage and leadership reports
-- Role-based access
+- Additional role and group-scoped monitor visibility
 - Teams/email alerts
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md).
