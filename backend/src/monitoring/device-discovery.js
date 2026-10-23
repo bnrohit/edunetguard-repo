@@ -160,7 +160,7 @@ function requestFingerprint({ address, family, hostname, port, secure }) {
   });
 }
 
-async function webFingerprints(resolved, hostname, openPorts) {
+async function webFingerprints(resolved, hostname, openPorts, privateTarget) {
   const ports = new Set(openPorts.map((item) => item.port));
   const candidates = [
     { port: 80, secure: false },
@@ -170,7 +170,7 @@ async function webFingerprints(resolved, hostname, openPorts) {
     { port: 8080, secure: false },
     { port: 8443, secure: true },
     { port: 9443, secure: true },
-  ].filter((item) => ports.size === 0 || ports.has(item.port));
+  ].filter((item) => privateTarget ? (ports.size === 0 || ports.has(item.port)) : [80, 443].includes(item.port));
 
   const results = await Promise.all(
     candidates.slice(0, 4).map((item) => requestFingerprint({
@@ -186,6 +186,7 @@ async function webFingerprints(resolved, hostname, openPorts) {
 async function discoverMonitor(monitor) {
   const host = targetHost(monitor);
   const resolved = await resolveAllowedTarget(host);
+  const privateTarget = isPrivateAddress(resolved.address);
   const [reverseNames, nmap] = await Promise.all([
     reverseDns(resolved.address),
     nmapFingerprint(resolved.address),
@@ -194,11 +195,12 @@ async function discoverMonitor(monitor) {
   const httpHints = await webFingerprints(
     resolved,
     host,
-    nmap.ports || []
+    nmap.ports || [],
+    privateTarget
   );
 
   return {
-    method: isPrivateAddress(resolved.address)
+    method: privateTarget
       ? 'reverse-dns+nmap-service-fingerprint+http-tls'
       : 'reverse-dns+http-tls',
     resolvedIp: resolved.address,
