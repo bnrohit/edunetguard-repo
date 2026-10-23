@@ -461,3 +461,13 @@ MIT License. See [`LICENSE`](LICENSE).
 Alpine's `nmap` package does not automatically install the NSE engine data used by `-sV`. The backend image now includes `nmap-nselibs` and `nmap-scripts`, and its Docker build fails if a single-host Nmap service scan fails as the runtime user.
 
 Run `bash scripts/verify-discovery.sh` after upgrading. A responsive ping by itself does **not** establish the type or model of the device. Approve only explicitly authorized networks in Admin → Network Discovery Policy, then use `bash scripts/diagnose-device.sh <approved-ip>` or **Identify Again**.
+
+
+### EduNetGuard v0.7.2: guided device troubleshooting & switch-port tracing
+
+The personal device detail now includes always-visible, device-type-specific
+troubleshooting steps and optional read-only example commands. The **Find
+Switch Port** button can perform an administrator-enrolled, read-only SNMPv3
+ARP/FDB lookup. It reports learned-port candidates, **not proof of a physical
+cable**. See [Topology & Troubleshooting](docs/TOPOLOGY_TROUBLESHOOTING.md)
+for required gateway and switch SNMPv3 setup.
