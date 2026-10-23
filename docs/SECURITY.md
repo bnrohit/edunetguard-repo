@@ -86,3 +86,24 @@ EduNetGuard v0.5 allows authenticated users to create personal Website, Ping/IP,
 - Monitor history is stored inside `edunetguard-user-data`; do not use it for student or staff personal data.
 
 Keep `USER_MONITOR_ALLOWED_CIDRS` limited to networks users are authorized to monitor. A broad RFC1918 allowlist can effectively give every authenticated user a network-probing capability from the EduNetGuard server.
+
+
+## Smart discovery security
+
+EduNetGuard v0.6 adds automatic device identification for personal monitors.
+
+- Discovery always starts with the existing validated monitor target.
+- Public targets do not receive Nmap service scans.
+- Nmap runs only against approved private targets in `USER_MONITOR_ALLOWED_CIDRS`.
+- The command is invoked with an argument array, not a shell command.
+- Only one resolved host is scanned.
+- Only a fixed list of common infrastructure TCP ports is scanned.
+- `-sT` TCP connect scanning is used; raw-packet/privileged scan types are not required.
+- `--version-light` limits service-version probing.
+- `--host-timeout` bounds discovery duration.
+- No NSE scripts, vulnerability tests, password guessing, evasion, spoofing, OS-aggressive detection, or subnet sweeps are used.
+- Manual re-discovery is rate-limited.
+- Raw scan output is not stored.
+- Discovery failure does not disable the normal uptime monitor.
+
+Administrators should keep `USER_MONITOR_ALLOWED_CIDRS` narrow. Smart discovery does not change the authorization boundary established by the monitor target policy.
