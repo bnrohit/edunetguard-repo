@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
     monitoring_engine: engine,
     monitoring_engine_error: engineError,
     timestamp: new Date().toISOString(),
-    version: '0.4.0',
+    version: '0.4.1',
   });
 });
 

@@ -53,3 +53,16 @@ The default compose file does **not** mount `/var/run/docker.sock`. Avoid mounti
 ## Reporting vulnerabilities
 
 Please open a private security advisory or contact the maintainer if you find a security issue.
+
+
+## Join-code reveal controls
+
+The normal-user join code is encrypted at rest in the EduNetGuard user-data volume after first migration from `USER_JOIN_CODE`.
+
+- Only an authenticated EduNetGuard administrator can request reveal or rotation.
+- The administrator must re-enter their current EduNetGuard password for each reveal or rotation.
+- Reveal/rotation requests are rate-limited.
+- Sensitive responses use `Cache-Control: no-store`.
+- The Admin UI automatically hides the revealed code after 60 seconds.
+- The separate administrator-registration code is never displayed by the Admin Console.
+- Changing `AUTH_SECRET` after the join code has been migrated will make the encrypted user join code unreadable; preserve `AUTH_SECRET` across upgrades.

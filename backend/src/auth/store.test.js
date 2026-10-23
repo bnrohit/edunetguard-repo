@@ -83,6 +83,24 @@ describe('EduNetGuard invite accounts', () => {
     expect(store.findUserById(user.id).preferences.favoriteMonitorIds).toEqual(['1', '2', '3']);
   });
 
+  test('encrypts, reveals, and rotates the normal-user join code', () => {
+    const joinCode = require('./join-code');
+
+    const status = joinCode.getUserJoinCodeStatus();
+    expect(status.configured).toBe(true);
+    expect(joinCode.revealUserJoinCode()).toBe('viewer-secret-code');
+
+    const inviteFile = path.join(tempDir, 'invite-secrets.json');
+    const raw = fs.readFileSync(inviteFile, 'utf8');
+    expect(raw).not.toContain('viewer-secret-code');
+
+    const rotated = joinCode.rotateUserJoinCode();
+    expect(rotated.code).toMatch(/^EDU-/);
+    expect(joinCode.revealUserJoinCode()).toBe(rotated.code);
+    expect(joinCode.matchesUserJoinCode('viewer-secret-code')).toBe(false);
+    expect(joinCode.matchesUserJoinCode(rotated.code)).toBe(true);
+  });
+
   test('signs and verifies HttpOnly session tokens', () => {
     const session = require('./session');
     const token = session.createSession({

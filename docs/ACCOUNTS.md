@@ -93,3 +93,19 @@ edunetguard-user-data
 ```
 
 Back it up along with `uptime-kuma-data`.
+
+
+## Viewing the normal-user join code
+
+Administrators can open `/admin` and use **User Join Code → Reveal**.
+
+EduNetGuard requires the currently signed-in administrator to re-enter their own password. On success:
+
+- the normal-user join code is shown temporarily
+- it can be copied
+- it automatically hides after 60 seconds
+- the response is marked non-cacheable
+
+The separate `ADMIN_JOIN_CODE` is never exposed in the Admin UI.
+
+Administrators can also **Rotate** the normal-user join code after password re-authentication. Rotation invalidates the old invitation immediately but does not affect existing accounts.
