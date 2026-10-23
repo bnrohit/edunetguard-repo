@@ -1,4 +1,4 @@
-# EduNetGuard v0.7.1 — Upgrade and device identification
+# EduNetGuard v0.7.2 — Upgrade and device identification
 
 v0.7 adds administrator-editable and persistent private IPv4 CIDR approvals, ICMP
 reachability, Nmap XML service fingerprints, SSH server-banner hints, and stronger
@@ -143,3 +143,12 @@ docker compose exec -T backend node -p "require('/app/package.json').version"
 CIDR examples: `10.7.252.1/32` authorizes precisely one IP; `10.7.252.0/24`
 authorizes all 256 addresses in that subnet. Approve only ranges you manage.
 A saved dashboard CIDR policy overrides `.env` defaults.
+
+
+## v0.7.2 guided troubleshooting and switch-port tracing
+
+The type-specific playbooks are visible whenever a personal monitor has a
+device profile, even when responding normally. Admin-enrolled gateways and
+switches can optionally provide learned-port *candidates* through SNMPv3.
+Read [TOPOLOGY_TROUBLESHOOTING.md](TOPOLOGY_TROUBLESHOOTING.md) before
+setting any SNMPv3 secrets and device IPs.
