@@ -15,10 +15,10 @@ function Footer({
               {productName}
             </div>
             <p className="text-sm text-slate-600 mt-1">
-              Live Infrastructure Visibility & Service Assurance
+              Network Continuity · Infrastructure Visibility · Service Assurance
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              Network · Wireless · Systems · Security · Continuity
+              Branded operations console with an internal monitoring engine
             </p>
           </div>
 
@@ -35,7 +35,7 @@ function Footer({
 
         <div className="mt-6 pt-5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-400">
           <span>© {new Date().getFullYear()} EduNetGuard</span>
-          <span>EduNetGuard v0.2.1 · Live operations interface</span>
+          <span>EduNetGuard v0.3.0 · Continuity Console</span>
         </div>
       </div>
     </footer>

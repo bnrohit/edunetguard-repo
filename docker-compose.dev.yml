@@ -23,7 +23,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: edunetguard-backend-dev
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
     volumes:
       - ./backend/src:/app/src
       - ./config:/app/config:ro
@@ -42,7 +42,7 @@ services:
     image: louislam/uptime-kuma:2.2.1
     container_name: edunetguard-kuma-dev
     ports:
-      - "3001:3001"
+      - "127.0.0.1:3001:3001"
     volumes:
       - uptime-kuma-dev-data:/app/data
     environment:

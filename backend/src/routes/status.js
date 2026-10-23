@@ -4,8 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const router = express.Router();
 
-const UPTIME_KUMA_URL = process.env.UPTIME_KUMA_URL || 'http://uptime-kuma:3001';
-const UPTIME_KUMA_STATUS_PAGE = process.env.UPTIME_KUMA_STATUS_PAGE || 'edunetguard';
+const MONITORING_URL = process.env.UPTIME_KUMA_URL || 'http://uptime-kuma:3001';
+const STATUS_PAGE_SLUG = process.env.UPTIME_KUMA_STATUS_PAGE || 'edunetguard';
 const ALLOW_DEMO_FALLBACK = process.env.ALLOW_DEMO_FALLBACK !== 'false';
 const DEMO_STATUS_PATH = path.join(__dirname, '../../data/demo_status.json');
 
@@ -19,10 +19,11 @@ function loadDemoStatus() {
   }));
   data.demo_mode = true;
   data.source = {
-    engine: 'demo',
+    engine: 'EduNetGuard Demo Telemetry',
     connected: false,
-    status_page_slug: UPTIME_KUMA_STATUS_PAGE,
+    status_page_slug: STATUS_PAGE_SLUG,
   };
+  data.summary = buildSummary(data.services);
   return data;
 }
 
@@ -58,7 +59,63 @@ function normalizeUptime(value) {
   return Math.round(percent * 100) / 100;
 }
 
-function transformKumaStatus(pageData, heartbeatData) {
+function buildSummary(services = []) {
+  const counts = {
+    total: services.length,
+    operational: 0,
+    down: 0,
+    pending: 0,
+    maintenance: 0,
+    attention: 0,
+  };
+
+  let responseTotal = 0;
+  let responseCount = 0;
+  let slowest = null;
+  let latestCheck = null;
+
+  for (const service of services) {
+    if (service.status === 'up') counts.operational += 1;
+    if (service.status === 'down') counts.down += 1;
+    if (service.status === 'pending') counts.pending += 1;
+    if (service.status === 'maintenance') counts.maintenance += 1;
+    if (service.status === 'down' || service.status === 'pending') counts.attention += 1;
+
+    const response = Number(service.response_time_ms);
+    if (Number.isFinite(response)) {
+      responseTotal += response;
+      responseCount += 1;
+      if (!slowest || response > slowest.response_time_ms) {
+        slowest = {
+          id: service.id,
+          name: service.name,
+          response_time_ms: Math.round(response),
+        };
+      }
+    }
+
+    if (service.last_check) {
+      const checkTime = Date.parse(service.last_check);
+      if (Number.isFinite(checkTime) && (!latestCheck || checkTime > latestCheck)) {
+        latestCheck = checkTime;
+      }
+    }
+  }
+
+  return {
+    ...counts,
+    availability_health_score: counts.total
+      ? Math.round(((counts.operational + counts.maintenance) / counts.total) * 100)
+      : 0,
+    average_response_ms: responseCount
+      ? Math.round((responseTotal / responseCount) * 10) / 10
+      : null,
+    slowest_service: slowest,
+    latest_check: latestCheck ? new Date(latestCheck).toISOString() : null,
+  };
+}
+
+function transformMonitoringStatus(pageData, heartbeatData) {
   const heartbeatList = heartbeatData?.heartbeatList || {};
   const uptimeList = heartbeatData?.uptimeList || {};
 
@@ -69,9 +126,9 @@ function transformKumaStatus(pageData, heartbeatData) {
     incident: pageData?.incident || null,
     demo_mode: false,
     source: {
-      engine: 'Uptime Kuma',
+      engine: 'EduNetGuard Monitoring Engine',
       connected: true,
-      status_page_slug: UPTIME_KUMA_STATUS_PAGE,
+      status_page_slug: STATUS_PAGE_SLUG,
       status_page_title: pageData?.config?.title || null,
     },
   };
@@ -81,8 +138,8 @@ function transformKumaStatus(pageData, heartbeatData) {
       const monitorId = String(monitor.id);
       const heartbeat = latestHeartbeat(heartbeatList[monitorId] || heartbeatList[monitor.id] || []);
       const uptime = normalizeUptime(
-        uptimeList[`${monitorId}_24`] ??
-        uptimeList[`${monitor.id}_24`] ??
+        uptimeList[monitorId + '_24'] ??
+        uptimeList[String(monitor.id) + '_24'] ??
         monitor.uptime
       );
 
@@ -94,7 +151,7 @@ function transformKumaStatus(pageData, heartbeatData) {
         last_check: heartbeat?.time ? new Date(heartbeat.time).toISOString() : null,
         response_time_ms: Number.isFinite(Number(heartbeat?.ping)) ? Number(heartbeat.ping) : null,
         message: heartbeat?.msg || null,
-        group: group.name || 'General',
+        group: group.name || 'Infrastructure Services',
         type: monitor.type || null,
       });
     }
@@ -107,6 +164,7 @@ function transformKumaStatus(pageData, heartbeatData) {
   if (total === 0) {
     transformed.overall.status = 'unknown';
     transformed.overall.uptime_percentage = 0;
+    transformed.summary = buildSummary(transformed.services);
     return transformed;
   }
 
@@ -123,23 +181,24 @@ function transformKumaStatus(pageData, heartbeatData) {
     transformed.overall.uptime_percentage = Math.round(average * 100) / 100;
   }
 
+  transformed.summary = buildSummary(transformed.services);
   return transformed;
 }
 
-async function fetchKumaStatus() {
-  const slug = encodeURIComponent(UPTIME_KUMA_STATUS_PAGE);
+async function fetchMonitoringStatus() {
+  const slug = encodeURIComponent(STATUS_PAGE_SLUG);
   const [pageResponse, heartbeatResponse] = await Promise.all([
-    axios.get(`${UPTIME_KUMA_URL}/api/status-page/${slug}`, {
+    axios.get(MONITORING_URL + '/api/status-page/' + slug, {
       timeout: 10000,
       headers: { Accept: 'application/json' },
     }),
-    axios.get(`${UPTIME_KUMA_URL}/api/status-page/heartbeat/${slug}`, {
+    axios.get(MONITORING_URL + '/api/status-page/heartbeat/' + slug, {
       timeout: 10000,
       headers: { Accept: 'application/json' },
     }),
   ]);
 
-  return transformKumaStatus(pageResponse.data, heartbeatResponse.data);
+  return transformMonitoringStatus(pageResponse.data, heartbeatResponse.data);
 }
 
 router.get('/', async (req, res) => {
@@ -148,26 +207,22 @@ router.get('/', async (req, res) => {
   if (cached) return res.json(cached);
 
   try {
-    const transformed = await fetchKumaStatus();
+    const transformed = await fetchMonitoringStatus();
     req.cache.set(cacheKey, transformed);
     return res.json(transformed);
   } catch (error) {
-    console.warn(
-      `Uptime Kuma status page '${UPTIME_KUMA_STATUS_PAGE}' unavailable:`,
-      error.message
-    );
+    console.warn('Monitoring status page unavailable:', error.message);
 
     if (ALLOW_DEMO_FALLBACK) {
       const demo = loadDemoStatus();
-      demo.warning = `Live monitoring is unavailable. Publish an Uptime Kuma status page with slug '${UPTIME_KUMA_STATUS_PAGE}' and add monitors to it.`;
+      demo.warning = 'Live monitoring is unavailable. Demo telemetry is clearly marked and must not be treated as operational data.';
       req.cache.set(cacheKey, demo, 10);
       return res.json(demo);
     }
 
     return res.status(503).json({
-      error: 'Unable to fetch status from monitoring service',
+      error: 'Unable to fetch live monitoring telemetry',
       message: error.message,
-      status_page_slug: UPTIME_KUMA_STATUS_PAGE,
       timestamp: new Date().toISOString(),
     });
   }
@@ -176,18 +231,17 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const cacheKey = `monitor_${id}`;
+    const cacheKey = 'monitor_' + id;
     const cached = req.cache.get(cacheKey);
     if (cached) return res.json(cached);
 
-    const status = await fetchKumaStatus();
+    const status = await fetchMonitoringStatus();
     const monitor = status.services.find((service) => String(service.id) === String(id));
 
     if (!monitor) {
       return res.status(404).json({
-        error: 'Monitor not found on the configured public status page',
+        error: 'Monitor not found on the configured operations status page',
         id,
-        status_page_slug: UPTIME_KUMA_STATUS_PAGE,
       });
     }
 

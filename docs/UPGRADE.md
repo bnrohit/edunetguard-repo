@@ -1,151 +1,140 @@
-# EduNetGuard v0.2 Upgrade Guide
+# EduNetGuard v0.3 Upgrade Guide
 
-This release keeps Uptime Kuma as the monitoring engine and upgrades EduNetGuard into the branded operations/status layer.
+v0.3 turns EduNetGuard into the only network-facing operations console while keeping the existing monitoring engine and its data intact.
 
-## What changes in v0.2
+## What changes
 
-- New EduNetGuard operations dashboard and product branding
-- Correct Uptime Kuma v2 public status-page integration
-- 24-hour uptime pulled from Uptime Kuma heartbeat data
-- Live response-time display where Uptime Kuma provides ping data
-- Maintenance, pending, degraded, and outage states
-- Active Uptime Kuma incident display
-- Configurable Uptime Kuma status-page slug
-- Clear demo-mode warning when live monitoring is not connected
+- EduNetGuard Continuity Console branding
+- Native monitoring admin binds to `127.0.0.1:3001` instead of all interfaces
+- EduNetGuard backend API binds to `127.0.0.1:4000`
+- User-facing dashboard remains on port `3000`
+- Continuity health score, average response time, slowest response and telemetry freshness
+- Search, status filters and group filters
+- Attention-first service sorting
+- Live operations queue replaces synthetic incident timestamps
+- Monitoring source is presented to users as the EduNetGuard Monitoring Engine
+- Existing persistent monitoring volume is preserved
 
-## Important: your existing Uptime Kuma data is preserved
+## Critical data-safety rule
 
-The Docker volume `uptime-kuma-data` is unchanged. Upgrading the EduNetGuard frontend/backend does not recreate your existing Uptime Kuma monitors.
-
-Do not run `docker compose down -v` during an upgrade. The `-v` option removes persistent volumes and can delete monitoring data.
-
-## 1. Back up first
-
-From the EduNetGuard project directory:
+Do **not** run:
 
 ```bash
-docker compose ps
-docker compose stop uptime-kuma
-
-docker run --rm \
-  -v "$(docker volume ls -q | grep 'uptime-kuma-data' | head -n 1):/source:ro" \
-  -v "$PWD:/backup" \
-  alpine sh -c 'cd /source && tar czf /backup/uptime-kuma-backup-$(date +%Y%m%d-%H%M%S).tar.gz .'
-
-docker compose start uptime-kuma
+docker compose down -v
 ```
 
-If your Docker volume has a custom name, replace the volume expression with that exact volume name.
+The `-v` option can remove the persistent monitoring-data volume.
 
-## 2. Update the code
+## Upgrade on an existing server
+
+From the existing repository directory:
 
 ```bash
-cd /path/to/edunetguard-repo
-git fetch origin
+cd ~/edunetguard-repo
+
+git status --short
 git checkout main
+git fetch origin
 git pull --ff-only origin main
-```
 
-## 3. Update `.env`
+docker compose config >/dev/null && echo "Compose OK"
 
-Add this line if it is not already present:
-
-```env
-UPTIME_KUMA_STATUS_PAGE=edunetguard
-```
-
-Recommended production settings:
-
-```env
-UPTIME_KUMA_URL=http://uptime-kuma:3001
-UPTIME_KUMA_STATUS_PAGE=edunetguard
-CACHE_TTL=30
-ALLOW_DEMO_FALLBACK=false
-TZ=America/Denver
-```
-
-Use `ALLOW_DEMO_FALLBACK=true` only when you intentionally want the sample dashboard to appear if live monitoring is unavailable.
-
-## 4. Publish the EduNetGuard status page in Uptime Kuma
-
-Open the Uptime Kuma admin interface on port `3001`.
-
-1. Open **Status Pages**.
-2. Create a status page.
-3. Use the slug `edunetguard` or set `UPTIME_KUMA_STATUS_PAGE` to the slug you choose.
-4. Add the monitors that EduNetGuard should display.
-5. Organize monitors into groups such as Core Infrastructure, Servers, Network Services, Schools, Wireless, Voice, or Learning Platforms.
-6. Publish/save the status page.
-
-EduNetGuard intentionally reads the published status-page API instead of requiring the Uptime Kuma administrator password.
-
-## 5. Rebuild and restart EduNetGuard
-
-```bash
 docker compose pull uptime-kuma
 docker compose build --pull frontend backend
 docker compose up -d
+
+docker compose ps
+curl -fsS http://127.0.0.1:4000/health
+echo
+curl -fsSI http://127.0.0.1:3000 | head
 ```
 
-## 6. Verify
+The existing `uptime-kuma-data` volume is reused. No monitor history should be deleted by this procedure.
+
+## Verify hardened bindings
 
 ```bash
-docker compose ps
-curl -fsS http://localhost:4000/health
-curl -fsS http://localhost:4000/status
+docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+sudo ss -lntp | grep -E ':(3000|3001|4000)\b' || true
 ```
 
-The `/status` response should contain:
+Expected behavior:
 
-```json
-{
-  "demo_mode": false,
-  "source": {
-    "engine": "Uptime Kuma",
-    "connected": true,
-    "status_page_slug": "edunetguard"
-  }
-}
+- `3000` may listen on the server network for the EduNetGuard dashboard.
+- `3001` should bind only to `127.0.0.1`.
+- `4000` should bind only to `127.0.0.1`.
+
+## Access the monitoring admin after v0.3
+
+From an authorized workstation, create an SSH tunnel:
+
+```bash
+ssh -L 3001:127.0.0.1:3001 rohith@<edunetguard-server>
 ```
 
-Then open the EduNetGuard dashboard on port `3000`.
+Keep that SSH session open and browse to:
 
-## Rollback
+```text
+http://127.0.0.1:3001
+```
 
-If you need to roll back only the EduNetGuard code:
+The admin interface is no longer directly available from other LAN clients.
+
+## Validate the branded console
+
+Open:
+
+```text
+http://<edunetguard-server>:3000
+```
+
+Verify:
+
+- EduNetGuard / GMCS Network Operations branding
+- no native monitoring-engine branding in the normal user interface
+- live monitor counts and 24-hour availability
+- continuity insights
+- search and filters
+- operational groups
+- operations queue
+- published incident banner, when one exists
+
+## Rollback application code
+
+Find the previous known-good commit:
 
 ```bash
 git log --oneline -10
+```
+
+Then:
+
+```bash
 git checkout <previous-known-good-commit>
 docker compose build frontend backend
 docker compose up -d
 ```
 
-The Uptime Kuma Docker volume remains separate from the application code.
+Do not delete the persistent volume during rollback.
 
 ## Troubleshooting
 
-### EduNetGuard shows demo data
-
-Check:
+### EduNetGuard reports telemetry unavailable
 
 ```bash
+docker compose ps
 docker compose logs --tail=100 backend
-curl -i http://localhost:3001/api/status-page/edunetguard
-curl -i http://localhost:3001/api/status-page/heartbeat/edunetguard
+docker compose logs --tail=100 uptime-kuma
+curl -fsS http://127.0.0.1:4000/health
 ```
 
-Both Uptime Kuma endpoints should return HTTP 200. If they return 404, confirm that the status page exists, uses the configured slug, is published, and contains monitors.
+### Need native monitoring administration
 
-### Dashboard is reachable but monitor data is old
+Use the SSH tunnel described above. Do not reopen port 3001 to the whole LAN merely for convenience.
+
+### Confirm persistent monitoring volume
 
 ```bash
-docker compose restart backend
-docker compose logs -f backend
+docker volume ls | grep uptime-kuma
+docker inspect edunetguard-kuma --format '{{json .Mounts}}'
 ```
-
-EduNetGuard caches monitor summaries for the number of seconds configured by `CACHE_TTL`.
-
-### Do not expose unnecessary ports publicly
-
-For an internal deployment, restrict ports `3001` and `4000` with host firewall rules or a reverse proxy. The normal EduNetGuard user-facing dashboard is port `3000`.
