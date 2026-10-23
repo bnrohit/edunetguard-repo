@@ -116,3 +116,19 @@ use upstream LLDP/CDP for those.
 | Generic/unknown | Ping/gateway/DNS | Management page and upstream switch |
 
 No remote power cycles, configuration writes, or unverified repairs occur.
+
+## Optional CLI port diagnosis
+
+After adding the SNMPv3 environment settings and restarting the backend, an
+administrator can request the same learned-port evidence directly on the
+Docker host without entering a password into the browser:
+
+```bash
+cd ~/edunetguard-repo
+bash scripts/trace-switch-port.sh YOUR_APPROVED_DEVICE_IP
+```
+
+This returns a JSON `status` of `candidates`, `unknown`, or
+`not-configured`. For `candidates`, verify the candidate interface on the
+listed switch before handling cables/PoE. Exit status 2 means no candidate
+was found; that is **not** proof that the device is disconnected.
