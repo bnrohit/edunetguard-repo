@@ -16,6 +16,7 @@ import {
   Search,
   Filter,
   X,
+  LockKeyhole,
 } from 'lucide-react';
 import StatusHeader from './components/StatusHeader';
 import ServiceGroup from './components/ServiceGroup';
@@ -25,9 +26,17 @@ import Footer from './components/Footer';
 import LoadingState from './components/LoadingState';
 import ErrorState from './components/ErrorState';
 import AdminConsole from './components/AdminConsole';
+import AuthDialog from './components/AuthDialog';
+import MyDashboard from './components/MyDashboard';
 
 const API_BASE = process.env.REACT_APP_API_URL || '/api';
 const REFRESH_INTERVAL = parseInt(process.env.REACT_APP_REFRESH_INTERVAL, 10) || 30000;
+
+function pathView() {
+  if (window.location.pathname.startsWith('/admin')) return 'admin';
+  if (window.location.pathname.startsWith('/me')) return 'me';
+  return 'dashboard';
+}
 
 function groupIcon(name) {
   const key = String(name || '').toLowerCase();
@@ -62,9 +71,33 @@ function MetricCard({ label, value, helper, icon: Icon, tone = 'slate' }) {
   );
 }
 
+function ProtectedView({ title, message, onSignIn }) {
+  return (
+    <main className="max-w-3xl mx-auto px-4 sm:px-6 py-16">
+      <div className="rounded-3xl bg-white border border-slate-200 p-10 text-center shadow-sm">
+        <div className="w-16 h-16 rounded-2xl bg-slate-100 mx-auto flex items-center justify-center">
+          <LockKeyhole className="w-8 h-8 text-slate-500" />
+        </div>
+        <h2 className="text-2xl font-bold text-slate-950 mt-5">{title}</h2>
+        <p className="text-slate-500 mt-2">{message}</p>
+        {onSignIn && (
+          <button
+            onClick={onSignIn}
+            className="mt-6 px-5 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700"
+          >
+            Sign In
+          </button>
+        )}
+      </div>
+    </main>
+  );
+}
+
 function App() {
   const [status, setStatus] = useState(null);
   const [config, setConfig] = useState(null);
+  const [health, setHealth] = useState(null);
+  const [authUser, setAuthUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -72,8 +105,9 @@ function App() {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [groupFilter, setGroupFilter] = useState('all');
-  const [health, setHealth] = useState(null);
-  const [currentView, setCurrentView] = useState(() => window.location.pathname.startsWith('/admin') ? 'admin' : 'dashboard');
+  const [currentView, setCurrentView] = useState(pathView);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [savingPreferences, setSavingPreferences] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -98,10 +132,25 @@ function App() {
     }
   };
 
+  const fetchAuth = async () => {
+    try {
+      const response = await axios.get(API_BASE + '/auth/me', {
+        timeout: 5000,
+        withCredentials: true,
+      });
+      setAuthUser(response.data.user);
+    } catch (err) {
+      if (err.response?.status !== 401) console.warn('Unable to restore EduNetGuard session:', err.message);
+      setAuthUser(null);
+    }
+  };
+
   useEffect(() => {
     fetchData();
+    fetchAuth();
+
     const interval = setInterval(fetchData, REFRESH_INTERVAL);
-    const onPopState = () => setCurrentView(window.location.pathname.startsWith('/admin') ? 'admin' : 'dashboard');
+    const onPopState = () => setCurrentView(pathView());
     window.addEventListener('popstate', onPopState);
     return () => {
       clearInterval(interval);
@@ -227,9 +276,50 @@ function App() {
   };
 
   const navigate = (view) => {
-    const path = view === 'admin' ? '/admin' : '/';
+    if ((view === 'me' || view === 'admin') && !authUser) {
+      setAuthOpen(true);
+      return;
+    }
+
+    const path = view === 'admin' ? '/admin' : view === 'me' ? '/me' : '/';
     window.history.pushState({}, '', path);
     setCurrentView(view);
+  };
+
+  const logout = async () => {
+    try {
+      await axios.post(API_BASE + '/auth/logout', {}, { withCredentials: true, timeout: 5000 });
+    } catch {
+      // Clear the local session view even if the server is temporarily unavailable.
+    }
+    setAuthUser(null);
+    navigate('dashboard');
+  };
+
+  const toggleFavorite = async (monitorId) => {
+    if (!authUser) {
+      setAuthOpen(true);
+      return;
+    }
+
+    const current = new Set((authUser.preferences?.favoriteMonitorIds || []).map(String));
+    const id = String(monitorId);
+    if (current.has(id)) current.delete(id);
+    else current.add(id);
+
+    setSavingPreferences(true);
+    try {
+      const response = await axios.patch(
+        API_BASE + '/auth/preferences',
+        { favoriteMonitorIds: Array.from(current) },
+        { withCredentials: true, timeout: 5000 }
+      );
+      setAuthUser(response.data.user);
+    } catch (err) {
+      console.error('Unable to save dashboard preferences:', err);
+    } finally {
+      setSavingPreferences(false);
+    }
   };
 
   const adminScheme = config?.admin?.scheme || 'http';
@@ -237,23 +327,15 @@ function App() {
   const adminPort = config?.admin?.port || 3001;
   const monitoringAdminUrl = adminScheme + '://' + adminHost + ':' + adminPort;
 
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <style>{':root { --primary-color: ' + primaryColor + '; } .text-primary { color: ' + primaryColor + '; } .bg-primary { background-color: ' + primaryColor + '; } .border-primary { border-color: ' + primaryColor + '; } .hover\\:bg-primary:hover { background-color: ' + primaryColor + '; }'}</style>
+  let view;
 
-      <StatusHeader
-        productName={productName}
-        tagline={tagline}
-        organizationName={organizationName}
-        lastUpdated={lastUpdated}
-        onRefresh={fetchData}
-        refreshing={refreshing}
-        connected={liveConnected}
-        currentView={currentView}
-        onNavigate={navigate}
-      />
-
-      {currentView === 'admin' ? (
+  if (currentView === 'admin') {
+    if (!authUser) {
+      view = <ProtectedView title="Administrator sign-in required" message="Sign in with an EduNetGuard administrator account." onSignIn={() => setAuthOpen(true)} />;
+    } else if (authUser.role !== 'admin') {
+      view = <ProtectedView title="Administrator access required" message="Your EduNetGuard account can use a personal dashboard but does not have administrator privileges." />;
+    } else {
+      view = (
         <AdminConsole
           productName={productName}
           status={status}
@@ -262,7 +344,21 @@ function App() {
           adminUrl={monitoringAdminUrl}
           onBack={() => navigate('dashboard')}
         />
-      ) : (
+      );
+    }
+  } else if (currentView === 'me') {
+    view = authUser ? (
+      <MyDashboard
+        user={authUser}
+        services={services}
+        onToggleFavorite={toggleFavorite}
+        saving={savingPreferences}
+      />
+    ) : (
+      <ProtectedView title="Sign in to your dashboard" message="Create an account with your administrator's secret join code, or sign in with an existing account." onSignIn={() => setAuthOpen(true)} />
+    );
+  } else {
+    view = (
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-7 space-y-7">
         <section className="rounded-3xl bg-slate-950 text-white p-6 sm:p-8 shadow-xl overflow-hidden relative">
           <div className="absolute -right-20 -top-24 w-72 h-72 rounded-full bg-primary opacity-20 blur-3xl" />
@@ -297,13 +393,7 @@ function App() {
         </section>
 
         <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <MetricCard
-            label="Active Monitors"
-            value={services.length}
-            helper="Across connected infrastructure"
-            icon={Monitor}
-            tone="blue"
-          />
+          <MetricCard label="Active Monitors" value={services.length} helper="Across connected infrastructure" icon={Monitor} tone="blue" />
           <MetricCard
             label="Healthy Services"
             value={operationalCount}
@@ -327,11 +417,7 @@ function App() {
           />
         </section>
 
-        <ContinuityInsights
-          summary={summary}
-          timestamp={status?.timestamp}
-          connected={liveConnected}
-        />
+        <ContinuityInsights summary={summary} timestamp={status?.timestamp} connected={liveConnected} />
 
         {status?.incident && liveConnected && (
           <section className="rounded-2xl border border-amber-200 bg-white p-5 shadow-sm">
@@ -408,12 +494,7 @@ function App() {
 
           <div className="space-y-5">
             {Object.entries(groupedServices).map(([groupName, groupServices]) => (
-              <ServiceGroup
-                key={groupName}
-                name={groupName}
-                services={groupServices}
-                icon={groupIcon(groupName)}
-              />
+              <ServiceGroup key={groupName} name={groupName} services={groupServices} icon={groupIcon(groupName)} />
             ))}
 
             {liveConnected && filteredServices.length === 0 && services.length > 0 && (
@@ -436,15 +517,43 @@ function App() {
           </div>
         </section>
 
-        {config?.display?.showIncidentHistory && liveConnected && (
-          <IncidentHistory services={services} />
-        )}
+        {config?.display?.showIncidentHistory && liveConnected && <IncidentHistory services={services} />}
       </main>
-      )}
+    );
+  }
 
-      <Footer
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <style>{':root { --primary-color: ' + primaryColor + '; } .text-primary { color: ' + primaryColor + '; } .bg-primary { background-color: ' + primaryColor + '; } .border-primary { border-color: ' + primaryColor + '; } .hover\\:bg-primary:hover { background-color: ' + primaryColor + '; }'}</style>
+
+      <StatusHeader
         productName={productName}
-        repositoryUrl={repositoryUrl}
+        tagline={tagline}
+        organizationName={organizationName}
+        lastUpdated={lastUpdated}
+        onRefresh={fetchData}
+        refreshing={refreshing}
+        connected={liveConnected}
+        currentView={currentView}
+        onNavigate={navigate}
+        user={authUser}
+        onSignIn={() => setAuthOpen(true)}
+        onLogout={logout}
+      />
+
+      {view}
+
+      <Footer productName={productName} repositoryUrl={repositoryUrl} />
+
+      <AuthDialog
+        open={authOpen}
+        onClose={() => setAuthOpen(false)}
+        onAuthenticated={(user) => {
+          setAuthUser(user);
+          setAuthOpen(false);
+          const target = user.role === 'admin' && currentView === 'admin' ? 'admin' : 'me';
+          navigate(target);
+        }}
       />
     </div>
   );
