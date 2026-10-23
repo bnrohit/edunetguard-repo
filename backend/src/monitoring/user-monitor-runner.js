@@ -29,7 +29,7 @@ async function checkHttp(monitor) {
     httpAgent,
     httpsAgent,
     headers: {
-      'User-Agent': 'EduNetGuard-UserMonitor/0.5',
+      'User-Agent': 'EduNetGuard-UserMonitor/0.6',
       Accept: '*/*',
     },
   });
