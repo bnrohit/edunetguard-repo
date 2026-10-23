@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { AlertTriangle, PauseCircle, PlayCircle, RefreshCw, Server, Trash2, Users } from 'lucide-react';
 
@@ -10,6 +10,11 @@ function AdminUserMonitors() {
   const [loading, setLoading] = useState(true);
   const [workingId, setWorkingId] = useState(null);
   const [error, setError] = useState('');
+  const [cidrDraft, setCidrDraft] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [savingPolicy, setSavingPolicy] = useState(false);
+  const [policyMessage, setPolicyMessage] = useState('');
+  const cidrEditing = useRef(false);
 
   const load = async () => {
     try {
@@ -19,6 +24,9 @@ function AdminUserMonitors() {
       });
       setMonitors(response.data.monitors || []);
       setPolicy(response.data.policy || null);
+      if (!cidrEditing.current) {
+        setCidrDraft((response.data.policy?.allowedPrivateCidrs || []).join('\n'));
+      }
       setError('');
     } catch (err) {
       setError(err.response?.data?.error || 'Unable to load user-owned monitors.');
@@ -42,6 +50,30 @@ function AdminUserMonitors() {
     });
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
   }, [monitors]);
+
+  const savePolicy = async (event) => {
+    event.preventDefault();
+    const cidrs = cidrDraft.split(/[\n,]+/).map((item) => item.trim()).filter(Boolean);
+    if (!cidrs.length && !window.confirm('Remove ALL private network approvals? All private monitors will stop checking.')) return;
+    setSavingPolicy(true);
+    setPolicyMessage('');
+    setError('');
+    try {
+      const result = await axios.patch(API_BASE + '/user-monitors/admin/policy', {
+        allowedPrivateCidrs: cidrs,
+        password: adminPassword,
+      }, { withCredentials: true, timeout: 10000 });
+      setPolicy(result.data.policy);
+      setCidrDraft((result.data.policy?.allowedPrivateCidrs || []).join('\n'));
+      cidrEditing.current = false;
+      setAdminPassword('');
+      setPolicyMessage('Network permissions saved. New checks and discovery now use these CIDRs.');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Unable to update CIDR policy.');
+    } finally {
+      setSavingPolicy(false);
+    }
+  };
 
   const mutate = async (monitor, action) => {
     setWorkingId(monitor.id);
@@ -94,6 +126,53 @@ function AdminUserMonitors() {
         <div className="px-6 py-3 bg-slate-50 border-b border-slate-100 text-xs text-slate-500">
           {monitors.length} total personal monitors · {policy.maxPerUser} max/user · minimum {policy.minIntervalSeconds}s
         </div>
+      )}
+
+      {policy && (
+        <form onSubmit={savePolicy} className="px-6 py-5 border-b border-slate-200 bg-indigo-50/40 space-y-3">
+          <div>
+            <h4 className="font-bold text-slate-900">Network Discovery Policy · Approved CIDRs</h4>
+            <p className="text-xs text-slate-600 mt-1">
+              Admin-controlled allowlist for private IP monitoring, ping, and single-host Nmap identification.
+              One IPv4 CIDR per line. No network sweeps. Changes are persistent in the user-data volume.
+            </p>
+          </div>
+          <label className="block text-sm font-medium text-slate-700">
+            Allowed private ranges
+            <textarea
+              value={cidrDraft}
+              onChange={(event) => {
+                cidrEditing.current = true;
+                setCidrDraft(event.target.value);
+                setPolicyMessage('');
+              }}
+              rows={3}
+              spellCheck={false}
+              placeholder={"10.128.0.0/16\n10.250.0.0/16"}
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-sm"
+            />
+          </label>
+          <div className="flex flex-col md:flex-row gap-3 md:items-end">
+            <label className="flex-1 text-sm font-medium text-slate-700">
+              Your administrator password (required to save)
+              <input
+                type="password" autoComplete="current-password" required
+                value={adminPassword}
+                onChange={(event) => setAdminPassword(event.target.value)}
+                className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 bg-white"
+              />
+            </label>
+            <button type="submit" disabled={savingPolicy}
+              className="rounded-xl bg-indigo-700 text-white px-5 py-2.5 text-sm font-bold disabled:opacity-50">
+              {savingPolicy ? 'Saving…' : 'Save Approved CIDRs'}
+            </button>
+          </div>
+          <p className="text-xs text-slate-500">
+            Source: {policy.cidrPolicySource === 'admin-dashboard' ? 'Saved by administrator' : '.env initial defaults'}.
+            Only private IPv4 ranges are accepted. Choose the smallest subnet needed.
+          </p>
+          {policyMessage && <p role="status" className="text-sm font-medium text-emerald-700">{policyMessage}</p>}
+        </form>
       )}
 
       {error && <div className="px-6 py-3 text-sm text-red-700 bg-red-50">{error}</div>}
