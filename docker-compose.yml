@@ -32,9 +32,16 @@ services:
       - CACHE_TTL=${CACHE_TTL:-30}
       - ALLOW_DEMO_FALLBACK=${ALLOW_DEMO_FALLBACK:-false}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost}
+      - AUTH_SECRET=${AUTH_SECRET:-}
+      - USER_JOIN_CODE=${USER_JOIN_CODE:-}
+      - ADMIN_JOIN_CODE=${ADMIN_JOIN_CODE:-}
+      - SESSION_TTL_SECONDS=${SESSION_TTL_SECONDS:-43200}
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
+      - USER_DATA_DIR=/app/user-data
     volumes:
       - ./config:/app/config:ro
       - ./data:/app/data:ro
+      - edunetguard-user-data:/app/user-data
     depends_on:
       uptime-kuma:
         condition: service_started
@@ -48,7 +55,7 @@ services:
       - edunetguard
 
   uptime-kuma:
-    image: louislam/uptime-kuma:2-slim
+    image: louislam/uptime-kuma:2
     container_name: edunetguard-kuma
     restart: unless-stopped
     ports:
@@ -62,6 +69,8 @@ services:
 
 volumes:
   uptime-kuma-data:
+    driver: local
+  edunetguard-user-data:
     driver: local
 
 networks:

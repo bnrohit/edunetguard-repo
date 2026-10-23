@@ -26,6 +26,13 @@ jobs:
         working-directory: ./backend
         run: npm install
 
+      - name: Validate Backend JavaScript
+        run: find backend/src -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Run Backend Tests
+        working-directory: ./backend
+        run: npm test -- --runInBand
+
       - name: Install Frontend Dependencies
         working-directory: ./frontend
         run: npm install

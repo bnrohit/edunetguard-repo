@@ -28,18 +28,24 @@ services:
       - ./backend/src:/app/src
       - ./config:/app/config:ro
       - ./data:/app/data:ro
+      - edunetguard-user-dev-data:/app/user-data
     environment:
       - NODE_ENV=development
       - PORT=4000
       - UPTIME_KUMA_URL=http://uptime-kuma:3001
       - CACHE_TTL=10
       - ALLOW_DEMO_FALLBACK=true
+      - AUTH_SECRET=${AUTH_SECRET:-}
+      - USER_JOIN_CODE=${USER_JOIN_CODE:-}
+      - ADMIN_JOIN_CODE=${ADMIN_JOIN_CODE:-}
+      - USER_DATA_DIR=/app/user-data
+      - COOKIE_SECURE=false
     command: npm run dev
     depends_on:
       - uptime-kuma
 
   uptime-kuma:
-    image: louislam/uptime-kuma:2.2.1
+    image: louislam/uptime-kuma:2
     container_name: edunetguard-kuma-dev
     ports:
       - "127.0.0.1:3001:3001"
@@ -50,3 +56,4 @@ services:
 
 volumes:
   uptime-kuma-dev-data:
+  edunetguard-user-dev-data:
