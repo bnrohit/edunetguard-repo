@@ -1,7 +1,7 @@
 {
   "name": "edunetguard-backend",
-  "version": "0.2.1",
-  "description": "API proxy and data aggregator for EduNetGuard Dashboard",
+  "version": "0.3.0",
+  "description": "Read-only monitoring aggregation API for the EduNetGuard continuity console",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
