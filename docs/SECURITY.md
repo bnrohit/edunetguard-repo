@@ -66,3 +66,23 @@ The normal-user join code is encrypted at rest in the EduNetGuard user-data volu
 - The Admin UI automatically hides the revealed code after 60 seconds.
 - The separate administrator-registration code is never displayed by the Admin Console.
 - Changing `AUTH_SECRET` after the join code has been migrated will make the encrypted user join code unreadable; preserve `AUTH_SECRET` across upgrades.
+
+
+## User-owned monitoring security
+
+EduNetGuard v0.5 allows authenticated users to create personal Website, Ping/IP, TCP, and DNS monitors. This capability is intentionally constrained.
+
+- Every monitor has an immutable owner ID.
+- Normal users can list/change/delete only monitors they own.
+- Admins can review and disable or remove all personal monitors.
+- Default quota: 20 monitors per user.
+- Default minimum interval: 30 seconds.
+- Manual checks are rate-limited.
+- Public targets can be disabled globally.
+- Private IPv4 targets are denied unless they match `USER_MONITOR_ALLOWED_CIDRS`.
+- Loopback, link-local, multicast, unspecified, and reserved target ranges are blocked.
+- Private IPv6/ULA/link-local targets are blocked in v0.5.
+- HTTP monitors allow only `http://` and `https://`, reject embedded credentials, disable redirects, and pin the validated DNS address for the outbound request.
+- Monitor history is stored inside `edunetguard-user-data`; do not use it for student or staff personal data.
+
+Keep `USER_MONITOR_ALLOWED_CIDRS` limited to networks users are authorized to monitor. A broad RFC1918 allowlist can effectively give every authenticated user a network-probing capability from the EduNetGuard server.
