@@ -414,6 +414,8 @@ function DeviceDetail({ monitor, workingId, onAction, onEdit, onClose }) {
             <div className="mt-2 text-xs text-slate-600 space-y-1">
               <p>ICMP: {discovery?.icmpReachable == null ? 'Not measured / unknown' : discovery.icmpReachable ? 'Reply received' : 'No response (ICMP may be blocked)'}</p>
               {discovery?.sshBanner && <p className="break-all">SSH banner: {discovery.sshBanner}</p>}
+              {discovery?.snmp?.sysDescr && <p className="break-words">SNMPv3 device description: {discovery.snmp.sysDescr}</p>}
+              {discovery?.snmp?.sysName && <p>SNMPv3 hostname: {discovery.snmp.sysName}</p>}
               {profile?.evidence?.map((reason, index) => <p key={index}>Classification: {reason}</p>)}
               {discovery?.nmapNote && <p className="text-amber-700">Nmap: {discovery.nmapNote}</p>}
               {discovery?.discoveredAt && <p>Identified: {new Date(discovery.discoveredAt).toLocaleString()}</p>}
