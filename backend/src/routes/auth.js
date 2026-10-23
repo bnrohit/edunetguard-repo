@@ -17,6 +17,7 @@ const {
   parseCookies,
   cookieHeader,
   clearCookieHeader,
+  sessionConfigured,
 } = require('../auth/session');
 
 const authLimiter = rateLimit({
@@ -56,6 +57,7 @@ function requireAdmin(req, res, next) {
 router.get('/config', (req, res) => {
   res.json({
     registration_enabled: registrationEnabled(),
+    authentication_ready: sessionConfigured(),
     password_min_length: 10,
     username_pattern: 'letters, numbers, dot, underscore, dash',
   });
@@ -63,6 +65,8 @@ router.get('/config', (req, res) => {
 
 router.post('/register', authLimiter, (req, res) => {
   try {
+    if (!registrationEnabled()) return res.status(503).json({ error: 'Account registration is not enabled.' });
+    if (!sessionConfigured()) return res.status(503).json({ error: 'Authentication is not configured correctly.' });
     const user = createUser({
       username: req.body?.username,
       password: req.body?.password,
@@ -79,6 +83,7 @@ router.post('/register', authLimiter, (req, res) => {
 
 router.post('/login', authLimiter, (req, res) => {
   try {
+    if (!sessionConfigured()) return res.status(503).json({ error: 'Authentication is not configured correctly.' });
     const user = authenticate(req.body?.username, req.body?.password);
     if (!user) return res.status(401).json({ error: 'Invalid username or password.' });
     res.setHeader('Set-Cookie', cookieHeader(createSession(user)));
