@@ -4,6 +4,7 @@ const https = require('https');
 const net = require('net');
 const { spawn } = require('child_process');
 const { resolveAllowedTarget, isPrivateAddress, assertAddressAllowed } = require('./user-monitor-policy');
+const { readSnmpIdentity } = require('./switch-port-trace');
 
 // Discovery is strictly single-host; no user-controlled Nmap arguments or CIDR scans.
 const DISCOVERY_PORTS = '21,22,23,53,80,135,139,161,389,443,445,515,548,554,631,636,902,3389,5480,5900,8000,8006,8080,8291,8443,9100,9443';
@@ -203,10 +204,11 @@ async function discoverMonitor(monitor) {
   const host = targetHost(monitor);
   const resolved = await resolveAllowedTarget(host);
   const privateTarget = isPrivateAddress(resolved.address);
-  const [reverseNames, nmap, icmp] = await Promise.all([
+  const [reverseNames, nmap, icmp, snmp] = await Promise.all([
     reverseDns(resolved.address),
     nmapFingerprint(resolved.address),
     privateTarget ? icmpReachability(resolved.address) : Promise.resolve(null),
+    privateTarget ? readSnmpIdentity(resolved.address).catch(() => null) : Promise.resolve(null),
   ]);
   // Reauthorize immediately before secondary probes, including after an admin revokes a subnet.
   assertAddressAllowed(resolved.address);
@@ -221,6 +223,7 @@ async function discoverMonitor(monitor) {
     reverseDns: reverseNames,
     icmpReachable: icmp,
     sshBanner: ssh,
+    snmp,
     openPorts: nmap.ports || [], nmapSkipped: Boolean(nmap.skipped),
     nmapNote: nmap.reason || null,
     web: httpHints, discoveredAt: new Date().toISOString(),
