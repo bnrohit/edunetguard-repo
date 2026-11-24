@@ -28,3 +28,8 @@
     @apply transform -translate-y-0.5;
   }
 }
+
+/* Accessible dashboard polish */
+:where(button,a,input,select,textarea):focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
+.service-card { border-radius: 1rem; box-shadow: 0 4px 16px rgba(15,23,42,.06); }
+@media (prefers-reduced-motion: reduce) { .status-dot, .service-card { animation: none !important; transition: none !important; transform: none !important; } }
